@@ -494,18 +494,18 @@
       {id:'app31',file:'app31_physics.html',name:'Physics',icon:'🔮',cat:'Game'},
       {id:'app32',file:'app32_arcade.html',name:'Arcade',icon:'🎮',cat:'Game'},
       // Utilities
-      {id:'app33',file:'app33_calculator.html',name:'Calc',icon:'🧮',cat:'Util'},
-      {id:'app34',file:'app34_calendar.html',name:'Calendar',icon:'📅',cat:'Util'},
-      {id:'app35',file:'app35_notes.html',name:'Notes',icon:'📝',cat:'Util'},
-      {id:'app36',file:'app36_weather.html',name:'Weather',icon:'🌤',cat:'Util'},
-      {id:'app37',file:'app37_music.html',name:'Music',icon:'🎵',cat:'Util'},
-      {id:'app38',file:'app38_video.html',name:'Video',icon:'🎬',cat:'Util'},
-      {id:'app39',file:'app39_images.html',name:'Images',icon:'🖼',cat:'Util'},
-      {id:'app40',file:'app40_clipboard.html',name:'Clipboard',icon:'📋',cat:'Util'},
-      {id:'app41',file:'app41_settings.html',name:'Settings',icon:'⚙️',cat:'Util'},
-      {id:'app42',file:'app42_notifs.html',name:'Notifs',icon:'🔔',cat:'Util'},
-      {id:'app43',file:'app43_browser.html',name:'Browser',icon:'🌐',cat:'Util'},
-      {id:'app44',file:'app44_taskmgr.html',name:'Tasks',icon:'📊',cat:'Util'},
+      {id:'app33',file:'app37_calculator.html',name:'Calc',icon:'🧮',cat:'Util'},
+      {id:'app34',file:'app38_calendar.html',name:'Calendar',icon:'📅',cat:'Util'},
+      {id:'app35',file:'app39_notes.html',name:'Notes',icon:'📝',cat:'Util'},
+      {id:'app36',file:'app40_weather.html',name:'Weather',icon:'🌤',cat:'Util'},
+      {id:'app37',file:'app41_musicplayer.html',name:'Music',icon:'🎵',cat:'Util'},
+      {id:'app38',file:'app42_videoplayer.html',name:'Video',icon:'🎬',cat:'Util'},
+      {id:'app39',file:'app43_imageviewer.html',name:'Images',icon:'🖼',cat:'Util'},
+      {id:'app40',file:'app44_clipboard.html',name:'Clipboard',icon:'📋',cat:'Util'},
+      {id:'app41',file:'app45_settings.html',name:'Settings',icon:'⚙️',cat:'Util'},
+      {id:'app42',file:'app46_notifications.html',name:'Notifs',icon:'🔔',cat:'Util'},
+      {id:'app43',file:'app50_browser.html',name:'Browser',icon:'🌐',cat:'Util'},
+      {id:'app44',file:'app49_taskmanager.html',name:'Tasks',icon:'📊',cat:'Util'},
     ];
 
     // ===== WINDOW MANAGER WITH ACCESSIBILITY =====
@@ -608,10 +608,12 @@
     }
     function focusWindow(id) {
       const w = windows[id]; if (!w) return;
-      Object.values(windows).forEach(x => {
-        x.classList.remove('focused');
-        x.setAttribute('aria-hidden', 'true');
-      });
+      // Only update classes and attributes for the focused window and previously focused window
+      const prevFocused = document.querySelector('.wm-window.focused');
+      if (prevFocused && prevFocused !== w) {
+        prevFocused.classList.remove('focused');
+        prevFocused.setAttribute('aria-hidden', 'true');
+      }
       w.classList.add('focused');
       w.style.zIndex = ++zIndex;
       w.setAttribute('aria-hidden', 'false');
@@ -702,19 +704,23 @@
     
     function renderLauncherGrid(appList) {
       const grid = document.getElementById('launcherGrid');
-      grid.innerHTML = appList.map((a, index) => `
-        <button class="launcher-app" 
-                role="gridcell"
-                tabindex="${index === 0 ? '0' : '-1'}"
-                data-app-id="${a.id}"
-                data-app-file="${a.file}"
-                aria-label="${a.name}"
-                onclick="launchAppFromLauncher('${a.file}')"
-                onkeydown="handleLauncherKeydown(event, ${index})">
-          <div class="launcher-app-icon" aria-hidden="true">${a.icon}</div>
-          <div class="launcher-app-name">${a.name}</div>
-        </button>
-      `).join('');
+      // Use DocumentFragment for better performance when adding multiple elements
+      const fragment = document.createDocumentFragment();
+      appList.forEach((a, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'launcher-app';
+        btn.setAttribute('role', 'gridcell');
+        btn.setAttribute('tabindex', index === 0 ? '0' : '-1');
+        btn.dataset.appId = a.id;
+        btn.dataset.appFile = a.file;
+        btn.setAttribute('aria-label', a.name);
+        btn.onclick = () => launchAppFromLauncher(a.file);
+        btn.onkeydown = (e) => handleLauncherKeydown(e, index);
+        btn.innerHTML = `<div class="launcher-app-icon" aria-hidden="true">${a.icon}</div><div class="launcher-app-name">${a.name}</div>`;
+        fragment.appendChild(btn);
+      });
+      grid.innerHTML = '';
+      grid.appendChild(fragment);
       launcherKeyboardIndex = appList.length > 0 ? 0 : -1;
       updateLauncherFocus();
     }
@@ -808,7 +814,12 @@
     
     function filterApps() {
       const q = document.getElementById('launcherSearch').value.toLowerCase();
-      filteredApps = apps.filter(a => a.name.toLowerCase().includes(q) || a.cat.toLowerCase().includes(q));
+      // Cache the search query and use early exit for better performance
+      if (!q) {
+        filteredApps = [...apps];
+      } else {
+        filteredApps = apps.filter(a => a.name.toLowerCase().includes(q) || a.cat.toLowerCase().includes(q));
+      }
       
       renderLauncherGrid(filteredApps);
       
