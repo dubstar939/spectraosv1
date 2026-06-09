@@ -5,19 +5,25 @@
   <title>Breakout — SpectraOS</title>
   <link rel="stylesheet" href="spectra.css">
   <style>
-    #break-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);}
-    .break-info{text-align:center;font-size:14px;margin:10px;}
-    .break-controls{text-align:center;font-size:12px;opacity:.7;}
+    .break-container{display:flex;flex-direction:column;height:100%;}
+    #break-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);max-width:100%;max-height:calc(100% - 100px);}
+    .break-info{text-align:center;font-size:14px;margin:10px;flex-shrink:0;}
+    .break-controls{text-align:center;font-size:12px;opacity:.7;flex-shrink:0;}
+    .break-body{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;}
   </style>
 </head>
 <body>
   <div class="window" style="width:420px;height:420px;">
     <div class="titlebar"><div class="title">🧱 Breakout</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
-    <div class="winbody">
-      <div class="break-info">Score: <span id="breakScore">0</span> | Lives: <span id="breakLives">3</span></div>
-      <canvas id="break-canvas" width="380" height="280"></canvas>
-      <div class="break-controls">← → Move • Click to launch</div>
-      <div style="text-align:center;margin-top:5px;"><button class="btn" onclick="initBreak()">New Game</button></div>
+    <div class="winbody" style="padding:0;">
+      <div class="break-container">
+        <div class="break-info">Score: <span id="breakScore">0</span> | Lives: <span id="breakLives">3</span></div>
+        <div class="break-body">
+          <canvas id="break-canvas" width="380" height="280"></canvas>
+        </div>
+        <div class="break-controls">← → Move • Click to launch</div>
+        <div style="text-align:center;margin-top:5px;padding:10px;"><button class="btn" onclick="initBreak()">New Game</button></div>
+      </div>
     </div>
   </div>
   <script>

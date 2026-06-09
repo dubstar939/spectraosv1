@@ -5,21 +5,27 @@
   <title>Particle Sim — SpectraOS</title>
   <link rel="stylesheet" href="spectra.css">
   <style>
-    #part-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;cursor:crosshair;}
-    .part-controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px;}
+    .part-container{display:flex;flex-direction:column;height:100%;}
+    #part-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;cursor:crosshair;max-width:100%;max-height:calc(100% - 70px);}
+    .part-controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px;flex-shrink:0;}
+    .part-body{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;}
   </style>
 </head>
 <body>
   <div class="window" style="width:620px;height:520px;">
     <div class="titlebar"><div class="title">✨ Particle Sim</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
-    <div class="winbody">
-      <canvas id="part-canvas" width="580" height="380"></canvas>
-      <div class="part-controls">
-        <button class="btn" onclick="mode='attract'">Attract</button>
-        <button class="btn" onclick="mode='repel'">Repel</button>
-        <button class="btn" onclick="mode='gravity'">Gravity</button>
-        <button class="btn" onclick="particles=[]">Clear</button>
-        <button class="btn" onclick="particles.push(...Array(50).fill(0).map(()=>newParticle()))">Add 50</button>
+    <div class="winbody" style="padding:0;">
+      <div class="part-container">
+        <div class="part-body">
+          <canvas id="part-canvas" width="580" height="380"></canvas>
+        </div>
+        <div class="part-controls">
+          <button class="btn" onclick="mode='attract'">Attract</button>
+          <button class="btn" onclick="mode='repel'">Repel</button>
+          <button class="btn" onclick="mode='gravity'">Gravity</button>
+          <button class="btn" onclick="particles=[]">Clear</button>
+          <button class="btn" onclick="particles.push(...Array(50).fill(0).map(()=>newParticle()))">Add 50</button>
+        </div>
       </div>
     </div>
   </div>
