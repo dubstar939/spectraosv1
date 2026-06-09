@@ -971,15 +971,28 @@
       if (e.data.type === 'launchApp') openApp(e.data.app);
       if (e.data.type === 'setWallpaper') {
         document.getElementById('desktop-bg').style.background = `url(${e.data.data}) center/cover`;
+        localStorage.setItem('spectra_wallpaper', e.data.data);
         showNotif('Wallpaper', 'New wallpaper applied!');
       }
       if (e.data.type === 'setAccent') {
         document.documentElement.style.setProperty('--accent', e.data.color);
+        localStorage.setItem('spectra_accent', e.data.color);
         showNotif('Theme', 'Accent color updated');
       }
     });
 
     // ===== INIT =====
+    // Load saved wallpaper
+    const savedWallpaper = localStorage.getItem('spectra_wallpaper');
+    if (savedWallpaper) {
+      document.getElementById('desktop-bg').style.background = `url(${savedWallpaper}) center/cover`;
+    }
+    // Load saved accent color
+    const savedAccent = localStorage.getItem('spectra_accent');
+    if (savedAccent) {
+      document.documentElement.style.setProperty('--accent', savedAccent);
+    }
+    
     initLauncher();
     showNotif('Welcome', 'SpectraOS v1.0 is ready');
 
