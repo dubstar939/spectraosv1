@@ -8,6 +8,7 @@
 // ═══════════════════════════════════════════
 class VirtualFS {
     constructor() {
+        this.storageKey = 'spectraos-fs-data';
         this.root = {
             type: 'dir',
             name: '/',
@@ -26,9 +27,7 @@ class VirtualFS {
                 }},
                 'bin': { type: 'dir', name: 'bin', children: {} },
                 'etc': { type: 'dir', name: 'etc', children: {
-                    'spectra.conf': { type: 'file', name: 'spectra.conf', content: '# SpectraOS Configuration
-accent=cyan
-' }
+                    'spectra.conf': { type: 'file', name: 'spectra.conf', content: '# SpectraOS Configuration\naccent=cyan\n' }
                 }},
                 'tmp': { type: 'dir', name: 'tmp', children: {} },
                 'var': { type: 'dir', name: 'var', children: {
@@ -40,6 +39,30 @@ accent=cyan
             }
         };
         this.cwd = '/home/user';
+        this.loadFromStorage();
+    }
+
+    saveToStorage() {
+        try {
+            const data = JSON.stringify(this.root);
+            localStorage.setItem(this.storageKey, data);
+        } catch (e) {
+            console.error('Failed to save filesystem state:', e);
+        }
+    }
+
+    loadFromStorage() {
+        try {
+            const data = localStorage.getItem(this.storageKey);
+            if (data) {
+                const parsed = JSON.parse(data);
+                if (parsed && parsed.type === 'dir') {
+                    this.root = parsed;
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load filesystem state:', e);
+        }
     }
 
     resolve(path) {
@@ -83,6 +106,7 @@ accent=cyan
         if (!parent || !parent.children) return false;
         if (parent.children[name]) return false;
         parent.children[name] = { type: 'dir', name, children: {} };
+        this.saveToStorage();
         return true;
     }
 
@@ -90,6 +114,7 @@ accent=cyan
         const { parent, name } = this.getParent(path);
         if (!parent || !parent.children) return false;
         parent.children[name] = { type: 'file', name, content };
+        this.saveToStorage();
         return true;
     }
 
@@ -97,6 +122,7 @@ accent=cyan
         const { parent, name } = this.getParent(path);
         if (!parent || !parent.children || !parent.children[name]) return false;
         delete parent.children[name];
+        this.saveToStorage();
         return true;
     }
 
@@ -116,6 +142,7 @@ accent=cyan
         const node = this.getNode(path);
         if (!node || node.type !== 'file') return false;
         node.content = content;
+        this.saveToStorage();
         return true;
     }
 
@@ -136,8 +163,35 @@ const fs = new VirtualFS();
 // ═══════════════════════════════════════════
 class NotificationSystem {
     constructor() {
+        this.storageKey = 'spectraos-notifications';
         this.notifications = [];
         this.listeners = [];
+        this.loadFromStorage();
+    }
+
+    saveToStorage() {
+        try {
+            const data = JSON.stringify(this.notifications);
+            localStorage.setItem(this.storageKey, data);
+        } catch (e) {
+            console.error('Failed to save notifications:', e);
+        }
+    }
+
+    loadFromStorage() {
+        try {
+            const data = localStorage.getItem(this.storageKey);
+            if (data) {
+                const parsed = JSON.parse(data);
+                if (Array.isArray(parsed)) {
+                    this.notifications = parsed;
+                    this.render();
+                    this.updateBadge();
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load notifications:', e);
+        }
     }
 
     add(title, text, icon = '🔔', type = 'info') {
@@ -149,6 +203,7 @@ class NotificationSystem {
         };
         this.notifications.unshift(notif);
         if (this.notifications.length > 50) this.notifications.pop();
+        this.saveToStorage();
         this.updateBadge();
         this.render();
         this.showToast(notif);
@@ -158,6 +213,7 @@ class NotificationSystem {
 
     clear() {
         this.notifications = [];
+        this.saveToStorage();
         this.updateBadge();
         this.render();
     }
@@ -165,12 +221,14 @@ class NotificationSystem {
     markRead(id) {
         const n = this.notifications.find(n => n.id === id);
         if (n) n.unread = false;
+        this.saveToStorage();
         this.updateBadge();
         this.render();
     }
 
     markAllRead() {
         this.notifications.forEach(n => n.unread = false);
+        this.saveToStorage();
         this.updateBadge();
         this.render();
     }
@@ -247,10 +305,38 @@ const notifSystem = new NotificationSystem();
 // ═══════════════════════════════════════════
 class WindowManager {
     constructor() {
+        this.storageKey = 'spectraos-windows';
         this.windows = new Map();
         this.zIndex = 200;
         this.activeWindow = null;
         this.windowLayer = document.getElementById('window-layer');
+    }
+
+    saveToStorage() {
+        try {
+            const windowData = Array.from(this.windows.entries()).map(([id, win]) => ({
+                id,
+                appId: win.appId,
+                title: win.title,
+                minimized: win.minimized,
+                maximized: win.maximized,
+                style: {
+                    width: win.element.style.width,
+                    height: win.element.style.height,
+                    left: win.element.style.left,
+                    top: win.element.style.top,
+                    zIndex: win.element.style.zIndex
+                }
+            }));
+            localStorage.setItem(this.storageKey, JSON.stringify(windowData));
+        } catch (e) {
+            console.error('Failed to save window state:', e);
+        }
+    }
+
+    loadFromStorage() {
+        // Window restoration is handled on a per-app basis
+        // since window content needs to be recreated by apps
     }
 
     create(appId, title, icon, contentHTML, options = {}) {
@@ -457,6 +543,7 @@ class WindowManager {
         win.element.style.zIndex = ++this.zIndex;
         this.activeWindow = id;
         this.updateActiveLabel(win.title);
+        this.saveToStorage();
     }
 
     minimizeWindow(id) {
@@ -464,6 +551,7 @@ class WindowManager {
         if (!win) return;
         win.minimized = !win.minimized;
         win.element.classList.toggle('minimized', win.minimized);
+        this.saveToStorage();
     }
 
     toggleMaximize(id) {
@@ -473,6 +561,7 @@ class WindowManager {
         win.element.classList.toggle('maximized', win.maximized);
         const btn = win.element.querySelector('.win-btn.maximize');
         btn.textContent = win.maximized ? '❐' : '□';
+        this.saveToStorage();
     }
 
     closeWindow(id) {
@@ -491,6 +580,7 @@ class WindowManager {
         setTimeout(() => {
             win.element.remove();
             this.windows.delete(id);
+            this.saveToStorage();
             if (this.activeWindow === id) {
                 this.activeWindow = null;
                 this.updateActiveLabel('Desktop');

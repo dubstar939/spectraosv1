@@ -33,10 +33,46 @@
     </div>
   </div>
   <script>
-    let notes=[{id:1,title:'Welcome to SpectraOS',body:'This is your notes app. Create, edit, and organize your thoughts.'},{id:2,title:'Ideas',body:'- Build a pixel art game
-- Design new UI themes
-- Learn WebAssembly'}];
-    let activeId=1;
+    const STORAGE_KEY = 'spectraos-notes-data';
+    let notes = [];
+    let activeId = null;
+    
+    // Load notes from localStorage on init
+    function loadNotesFromStorage() {
+        try {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                const parsed = JSON.parse(data);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    notes = parsed;
+                    activeId = notes[0].id;
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load notes:', e);
+        }
+        // Default notes if nothing saved
+        notes = [
+            {id:1, title:'Welcome to SpectraOS', body:'This is your notes app. Create, edit, and organize your thoughts.'},
+            {id:2, title:'Ideas', body:'- Build a pixel art game\n- Design new UI themes\n- Learn WebAssembly'}
+        ];
+        activeId = notes[0].id;
+        return false;
+    }
+    
+    // Save notes to localStorage
+    function saveNotesToStorage() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+        } catch (e) {
+            console.error('Failed to save notes:', e);
+        }
+    }
+    
+    // Initialize
+    loadNotesFromStorage();
+    
     function renderList(){
       const list=document.getElementById('notesList'); list.innerHTML='';
       notes.forEach(n=>{
@@ -52,10 +88,11 @@
     function saveNote(){
       const n=notes.find(x=>x.id===activeId); if(!n) return;
       n.title=document.getElementById('noteTitle').value; n.body=document.getElementById('noteBody').value;
+      saveNotesToStorage();
       renderList();
     }
-    function newNote(){const id=Date.now(); notes.push({id,title:'New Note',body:''}); activeId=id; renderList(); loadNote();}
-    function deleteNote(){notes=notes.filter(n=>n.id!==activeId); if(!notes.length) newNote(); else activeId=notes[0].id; renderList(); loadNote();}
+    function newNote(){const id=Date.now(); notes.push({id,title:'New Note',body:''}); activeId=id; renderList(); loadNote(); saveNotesToStorage();}
+    function deleteNote(){notes=notes.filter(n=>n.id!==activeId); if(!notes.length) newNote(); else activeId=notes[0].id; renderList(); loadNote(); saveNotesToStorage();}
     document.getElementById('noteTitle').addEventListener('input',saveNote);
     document.getElementById('noteBody').addEventListener('input',saveNote);
     renderList(); loadNote();
