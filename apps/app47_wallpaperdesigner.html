@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wallpaper Designer — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    #wp-canvas{display:block;margin:10px auto;border-radius:8px;}
+    .wp-controls{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:10px;}
+    .wp-control{padding:10px;background:rgba(255,255,255,.05);border-radius:8px;}
+    .wp-label{font-size:11px;opacity:.6;margin-bottom:5px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:480px;height:540px;">
+    <div class="titlebar"><div class="title">🖼 Wallpaper Designer</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <canvas id="wp-canvas" width="440" height="240"></canvas>
+      <div class="wp-controls">
+        <div class="wp-control"><div class="wp-label">Pattern</div><select class="input" id="wpPattern" onchange="renderWP()"><option>Gradient</option><option>Grid</option><option>Dots</option><option>Waves</option><option>Noise</option></select></div>
+        <div class="wp-control"><div class="wp-label">Primary Color</div><input type="color" class="input" id="wpColor1" value="#0a0a1f" onchange="renderWP()"></div>
+        <div class="wp-control"><div class="wp-label">Secondary Color</div><input type="color" class="input" id="wpColor2" value="#00ff88" onchange="renderWP()"></div>
+        <div class="wp-control"><div class="wp-label">Complexity</div><input type="range" class="input" id="wpComplex" min="1" max="10" value="5" oninput="renderWP()"></div>
+      </div>
+      <div style="text-align:center;margin-top:10px;"><button class="btn" onclick="applyWP()">Apply as Wallpaper</button><button class="btn" onclick="downloadWP()">Download</button></div>
+    </div>
+  </div>
+  <script>
+    const c=document.getElementById('wp-canvas'), ctx=c.getContext('2d');
+    function renderWP(){
+      const p=document.getElementById('wpPattern').value, c1=document.getElementById('wpColor1').value, c2=document.getElementById('wpColor2').value, comp=parseInt(document.getElementById('wpComplex').value);
+      ctx.fillStyle=c1; ctx.fillRect(0,0,440,240);
+      if(p==='Gradient'){const g=ctx.createLinearGradient(0,0,440,240);g.addColorStop(0,c1);g.addColorStop(1,c2);ctx.fillStyle=g;ctx.fillRect(0,0,440,240);}
+      else if(p==='Grid'){ctx.strokeStyle=c2;ctx.lineWidth=1;for(let i=0;i<440;i+=comp*4){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,240);ctx.stroke();}for(let i=0;i<240;i+=comp*4){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(440,i);ctx.stroke();}}
+      else if(p==='Dots'){ctx.fillStyle=c2;for(let x=0;x<440;x+=comp*6)for(let y=0;y<240;y+=comp*6){ctx.beginPath();ctx.arc(x,y,comp/2,0,Math.PI*2);ctx.fill();}}
+      else if(p==='Waves'){ctx.strokeStyle=c2;ctx.lineWidth=2;for(let y=0;y<240;y+=comp*3){ctx.beginPath();for(let x=0;x<440;x++){ctx.lineTo(x,y+Math.sin(x*0.02+y*0.05)*comp*3);}ctx.stroke();}}
+      else if(p==='Noise'){for(let i=0;i<comp*200;i++){ctx.fillStyle=Math.random()>0.5?c1:c2;ctx.fillRect(Math.random()*440,Math.random()*240,2,2);}}
+    }
+    function applyWP(){window.parent.postMessage({type:'setWallpaper',data:c.toDataURL()},'*');}
+    function downloadWP(){const a=document.createElement('a');a.href=c.toDataURL();a.download='spectra-wallpaper.png';a.click();}
+    renderWP();
+  </script>
+</body>
+</html>

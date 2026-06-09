@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Notifications — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .notif-list{max-height:340px;overflow-y:auto;padding:10px;}
+    .notif-item{padding:12px;border-radius:10px;background:rgba(255,255,255,.05);margin-bottom:8px;border-left:3px solid #00ff88;transition:all .2s;}
+    .notif-item:hover{background:rgba(255,255,255,.1);}
+    .notif-item.warning{border-left-color:#ffcc00;}
+    .notif-item.error{border-left-color:#ff0055;}
+    .notif-item.info{border-left-color:#00ccff;}
+    .notif-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+    .notif-body{font-size:12px;opacity:.7;margin-bottom:4px;}
+    .notif-time{font-size:10px;opacity:.4;}
+    .notif-actions{display:flex;gap:8px;margin-top:8px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:380px;height:440px;">
+    <div class="titlebar"><div class="title">🔔 Notifications</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div style="padding:10px;display:flex;gap:8px;">
+        <button class="btn" onclick="clearAll()">Clear All</button>
+        <button class="btn" onclick="markRead()">Mark All Read</button>
+      </div>
+      <div class="notif-list" id="notifList"></div>
+    </div>
+  </div>
+  <script>
+    let notifs=[
+      {t:'System Update',b:'SpectraOS v1.0.1 is available',time:'2 min ago',type:'info',read:false},
+      {t:'File Transfer',b:'Download complete: project.zip',time:'15 min ago',type:'info',read:false},
+      {t:'Security Alert',b:'Unusual login attempt detected',time:'1 hour ago',type:'warning',read:false},
+      {t:'Backup Complete',b:'Daily backup finished successfully',time:'3 hours ago',type:'info',read:true},
+      {t:'Storage Warning',b:'Disk space below 20%',time:'5 hours ago',type:'error',read:false},
+    ];
+    function renderNotifs(){
+      const l=document.getElementById('notifList'); l.innerHTML='';
+      notifs.forEach((n,i)=>{
+        const el=document.createElement('div'); el.className='notif-item '+n.type;
+        el.innerHTML=`<div class="notif-title">${n.t}</div><div class="notif-body">${n.b}</div><div class="notif-time">${n.time}</div><div class="notif-actions"><button class="btn" style="padding:4px 10px;font-size:11px;" onclick="dismiss(${i})">Dismiss</button></div>`;
+        l.appendChild(el);
+      });
+    }
+    function dismiss(i){notifs.splice(i,1); renderNotifs();}
+    function clearAll(){notifs=[]; renderNotifs();}
+    function markRead(){notifs.forEach(n=>n.read=true); renderNotifs();}
+    renderNotifs();
+  </script>
+</body>
+</html>

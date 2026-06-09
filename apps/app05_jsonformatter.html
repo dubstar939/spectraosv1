@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>JSON Formatter — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .json-layout{display:flex;height:calc(100% - 40px);gap:10px;}
+    .json-panel{flex:1;display:flex;flex-direction:column;}
+    .json-label{font-size:11px;opacity:.5;margin-bottom:5px;}
+    .json-area{flex:1;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px;color:#e0e0e0;font-family:monospace;font-size:12px;resize:none;outline:none;line-height:1.6;}
+    .json-tree{font-family:monospace;font-size:12px;line-height:1.6;overflow:auto;}
+    .tree-key{color:#00ccff;}
+    .tree-string{color:#00ff88;}
+    .tree-number{color:#ffcc00;}
+    .tree-bool{color:#ff0055;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:700px;height:480px;">
+    <div class="titlebar"><div class="title">📋 JSON Formatter</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button class="btn" onclick="formatJSON()">Format</button>
+        <button class="btn" onclick="minifyJSON()">Minify</button>
+        <button class="btn" onclick="validateJSON()">Validate</button>
+        <button class="btn" onclick="copyJSON()">Copy</button>
+        <button class="btn" onclick="clearJSON()">Clear</button>
+      </div>
+      <div class="json-layout">
+        <div class="json-panel">
+          <div class="json-label">Input</div>
+          <textarea class="json-area" id="jsonInput" placeholder='Paste JSON here...'>{"name":"SpectraOS","version":"1.0","apps":50,"active":true,"features":["window-manager","app-launcher","virtual-fs"]}</textarea>
+        </div>
+        <div class="json-panel">
+          <div class="json-label">Output</div>
+          <div class="json-area" id="jsonOutput" style="background:rgba(0,0,0,.2);overflow:auto;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    function formatJSON(){try{const obj=JSON.parse(document.getElementById('jsonInput').value);document.getElementById('jsonOutput').innerHTML=syntaxHighlight(JSON.stringify(obj,null,2));}catch(e){document.getElementById('jsonOutput').innerHTML='<span style="color:#ff0055">Error: '+e.message+'</span>';}}
+    function minifyJSON(){try{const obj=JSON.parse(document.getElementById('jsonInput').value);document.getElementById('jsonOutput').textContent=JSON.stringify(obj);}catch(e){document.getElementById('jsonOutput').innerHTML='<span style="color:#ff0055">Error: '+e.message+'</span>';}}
+    function validateJSON(){try{JSON.parse(document.getElementById('jsonInput').value);document.getElementById('jsonOutput').innerHTML='<span style="color:#00ff88">✓ Valid JSON</span>';}catch(e){document.getElementById('jsonOutput').innerHTML='<span style="color:#ff0055">✗ Invalid: '+e.message+'</span>';}}
+    function copyJSON(){navigator.clipboard.writeText(document.getElementById('jsonOutput').textContent);}
+    function clearJSON(){document.getElementById('jsonInput').value='';document.getElementById('jsonOutput').innerHTML='';}
+    function syntaxHighlight(json){return json.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/(".*?")(\s*:\s*)?/g,'<span class="tree-string">$1</span>$2').replace(/(true|false|null)/g,'<span class="tree-bool">$1</span>').replace(/(\d+)/g,'<span class="tree-number">$1</span>').replace(/(".*?")(\s*:\s*)/g,'<span class="tree-key">$1</span>$2');}
+    formatJSON();
+  </script>
+</body>
+</html>

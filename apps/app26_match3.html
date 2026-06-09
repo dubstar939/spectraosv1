@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Match-3 — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    #m3-grid{display:grid;grid-template-columns:repeat(8,40px);gap:2px;margin:10px auto;justify-content:center;}
+    .m3-cell{width:40px;height:40px;border-radius:6px;cursor:pointer;transition:transform .2s;border:1px solid rgba(255,255,255,.1);}
+    .m3-cell:hover{transform:scale(1.1);}
+    .m3-cell.selected{box-shadow:0 0 0 2px #f0f;border:1px solid #f0f;}
+    .m3-score{text-align:center;font-size:24px;margin:10px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:400px;height:460px;">
+    <div class="titlebar"><div class="title">💎 Match-3</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="m3-score" id="m3Score">Score: 0</div>
+      <div id="m3-grid"></div>
+      <div style="text-align:center;margin-top:10px;"><button class="btn" onclick="initM3()">New Game</button></div>
+    </div>
+  </div>
+  <script>
+    const COLORS=['#ff0055','#00ff88','#00ccff','#ffcc00','#cc00ff','#ff6600'];
+    let grid=[], score=0, selected=null;
+    function initM3(){
+      score=0; document.getElementById('m3Score').textContent='Score: 0';
+      grid=[];
+      for(let i=0;i<64;i++) grid.push(Math.floor(Math.random()*COLORS.length));
+      renderM3();
+    }
+    function renderM3(){
+      const g=document.getElementById('m3-grid'); g.innerHTML='';
+      grid.forEach((c,i)=>{
+        const d=document.createElement('div'); d.className='m3-cell'; d.style.background=COLORS[c];
+        if(selected===i) d.classList.add('selected');
+        d.onclick=()=>clickM3(i); g.appendChild(d);
+      });
+    }
+    function clickM3(i){
+      if(selected===null){selected=i; renderM3(); return;}
+      if(Math.abs(selected-i)===1 || Math.abs(selected-i)===8){
+        [grid[selected],grid[i]]=[grid[i],grid[selected]];
+        checkMatches(); selected=null;
+      } else {selected=i;}
+      renderM3();
+    }
+    function checkMatches(){
+      let matched=new Set();
+      for(let r=0;r<8;r++){
+        for(let c=0;c<6;c++){
+          let i=r*8+c;
+          if(grid[i]===grid[i+1] && grid[i]===grid[i+2]){matched.add(i);matched.add(i+1);matched.add(i+2);}
+        }
+      }
+      for(let c=0;c<8;c++){
+        for(let r=0;r<6;r++){
+          let i=r*8+c;
+          if(grid[i]===grid[i+8] && grid[i]===grid[i+16]){matched.add(i);matched.add(i+8);matched.add(i+16);}
+        }
+      }
+      if(matched.size>0){
+        score+=matched.size*10;
+        document.getElementById('m3Score').textContent='Score: '+score;
+        matched.forEach(i=>{grid[i]=Math.floor(Math.random()*COLORS.length);});
+        renderM3();
+      }
+    }
+    initM3();
+  </script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Player — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .vp-screen{width:100%;height:200px;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;position:relative;overflow:hidden;}
+    .vp-screen::before{content:"▶";font-size:48px;opacity:.3;}
+    .vp-controls{display:flex;gap:10px;align-items:center;padding:0 5px;}
+    .vp-progress{flex:1;height:6px;background:rgba(255,255,255,.1);border-radius:3px;cursor:pointer;position:relative;}
+    .vp-progress-fill{height:100%;background:#00ff88;border-radius:3px;width:0%;}
+    .vp-time{font-size:11px;opacity:.6;min-width:80px;text-align:center;}
+    .vp-playlist{margin-top:10px;max-height:120px;overflow-y:auto;}
+    .vp-item{padding:8px 12px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;transition:all .2s;font-size:13px;}
+    .vp-item:hover,.vp-item.active{background:rgba(255,255,255,.1);}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:420px;height:460px;">
+    <div class="titlebar"><div class="title">🎬 Video Player</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="vp-screen" id="vpScreen" onclick="toggleVP()"></div>
+      <div class="vp-controls">
+        <button class="btn" onclick="toggleVP()" id="vpPlayBtn">▶</button>
+        <div class="vp-progress" onclick="seekVP(event)"><div class="vp-progress-fill" id="vpProg"></div></div>
+        <span class="vp-time" id="vpTime">0:00 / 3:24</span>
+      </div>
+      <div class="vp-playlist" id="vpList"></div>
+    </div>
+  </div>
+  <script>
+    const videos=[{t:'Demo Reel 2024',d:'3:24'},{t:'Tutorial: SpectraOS',d:'8:15'},{t:'Neon City Flythrough',d:'2:45'},{t:'Coding Session',d:'12:30'}];
+    let current=0, playing=false, progress=0, interval;
+    function renderList(){
+      const l=document.getElementById('vpList'); l.innerHTML='';
+      videos.forEach((v,i)=>{
+        const el=document.createElement('div'); el.className='vp-item'+(i===current?' active':'');
+        el.innerHTML=`<span>${v.t}</span><span style="opacity:.5;font-size:11px;">${v.d}</span>`;
+        el.onclick=()=>{current=i;loadVideo();}; l.appendChild(el);
+      });
+    }
+    function loadVideo(){progress=0;document.getElementById('vpProg').style.width='0%';document.getElementById('vpTime').textContent='0:00 / '+videos[current].d;renderList();}
+    function toggleVP(){playing=!playing;document.getElementById('vpPlayBtn').textContent=playing?'⏸':'▶';document.getElementById('vpScreen').style.background=playing?'linear-gradient(45deg,#1a0033,#0a0a1f)':'#000';if(playing){interval=setInterval(()=>{progress+=0.3;document.getElementById('vpProg').style.width=progress+'%';if(progress>=100){nextVideo();}const secs=Math.floor(progress*parseInt(videos[current].d)*0.6);document.getElementById('vpTime').textContent=formatTime(secs)+' / '+videos[current].d;},100);}else{clearInterval(interval);}}
+    function nextVideo(){current=(current+1)%videos.length;loadVideo();if(playing)toggleVP();toggleVP();}
+    function seekVP(e){const r=e.target.getBoundingClientRect();progress=((e.clientX-r.left)/r.width)*100;document.getElementById('vpProg').style.width=progress+'%';}
+    function formatTime(s){const m=Math.floor(s/60);return m+':'+String(s%60).padStart(2,'0');}
+    renderList(); loadVideo();
+  </script>
+</body>
+</html>

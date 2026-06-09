@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Particle Sim — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    #part-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;cursor:crosshair;}
+    .part-controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:620px;height:520px;">
+    <div class="titlebar"><div class="title">✨ Particle Sim</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <canvas id="part-canvas" width="580" height="380"></canvas>
+      <div class="part-controls">
+        <button class="btn" onclick="mode='attract'">Attract</button>
+        <button class="btn" onclick="mode='repel'">Repel</button>
+        <button class="btn" onclick="mode='gravity'">Gravity</button>
+        <button class="btn" onclick="particles=[]">Clear</button>
+        <button class="btn" onclick="particles.push(...Array(50).fill(0).map(()=>newParticle()))">Add 50</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const c=document.getElementById('part-canvas'), ctx=c.getContext('2d');
+    let particles=[], mode='attract', mx=290, my=190;
+    function newParticle(){
+      return {x:Math.random()*580,y:Math.random()*380,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2,color:'hsl('+Math.random()*360+',80%,60%)',size:Math.random()*4+2};
+    }
+    for(let i=0;i<100;i++) particles.push(newParticle());
+    c.addEventListener('mousemove',e=>{const r=c.getBoundingClientRect(); mx=e.clientX-r.left; my=e.clientY-r.top;});
+    c.addEventListener('click',()=>{for(let i=0;i<20;i++) particles.push(newParticle());});
+    function update(){
+      particles.forEach(p=>{
+        let dx=mx-p.x, dy=my-p.y, dist=Math.sqrt(dx*dx+dy*dy)+1;
+        let force=mode==='attract'?50/dist:mode==='repel'?-50/dist:0;
+        p.vx+=dx/dist*force*0.1; p.vy+=dy/dist*force*0.1;
+        if(mode==='gravity') p.vy+=0.1;
+        p.vx*=0.98; p.vy*=0.98; p.x+=p.vx; p.y+=p.vy;
+        if(p.x<0||p.x>580) p.vx*=-0.8; if(p.y<0||p.y>380) p.vy*=-0.8;
+        p.x=Math.max(0,Math.min(580,p.x)); p.y=Math.max(0,Math.min(380,p.y));
+      });
+    }
+    function draw(){
+      ctx.fillStyle='rgba(10,10,15,.2)'; ctx.fillRect(0,0,580,380);
+      particles.forEach(p=>{
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+        ctx.fillStyle=p.color; ctx.fill();
+        ctx.shadowBlur=10; ctx.shadowColor=p.color;
+      });
+      ctx.shadowBlur=0;
+      requestAnimationFrame(()=>{update();draw();});
+    }
+    draw();
+  </script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>File Manager — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .fm-toolbar{display:flex;gap:8px;padding:8px 12px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.1);align-items:center;}
+    .fm-path{flex:1;display:flex;gap:4px;align-items:center;}
+    .fm-path-btn{padding:4px 8px;border-radius:4px;background:rgba(255,255,255,.08);border:none;color:#e0e0e0;font-size:12px;cursor:pointer;}
+    .fm-path-btn:hover{background:rgba(255,255,255,.15);}
+    .fm-layout{display:flex;height:calc(100% - 80px);}
+    .fm-sidebar{width:160px;border-right:1px solid rgba(255,255,255,.1);padding:10px;}
+    .fm-sidebar-item{padding:8px 10px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:8px;transition:all .2s;}
+    .fm-sidebar-item:hover,.fm-sidebar-item.active{background:rgba(255,255,255,.1);}
+    .fm-main{flex:1;padding:10px;overflow-y:auto;}
+    .fm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;}
+    .fm-item{padding:12px;border-radius:10px;background:rgba(255,255,255,.05);text-align:center;cursor:pointer;transition:all .2s;border:1px solid transparent;position:relative;}
+    .fm-item:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.1);}
+    .fm-item.selected{background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.3);}
+    .fm-item-icon{font-size:32px;margin-bottom:6px;}
+    .fm-item-name{font-size:11px;word-break:break-all;}
+    .fm-item-size{font-size:10px;opacity:.4;margin-top:2px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:600px;height:450px;">
+    <div class="titlebar"><div class="title">📁 File Manager</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="fm-toolbar">
+        <button class="fm-path-btn" onclick="goUp()">⬆ Up</button>
+        <div class="fm-path" id="fmPath"></div>
+        <button class="btn" style="padding:4px 10px;font-size:11px;" onclick="newFolder()">+ Folder</button>
+        <button class="btn" style="padding:4px 10px;font-size:11px;" onclick="newFile()">+ File</button>
+      </div>
+      <div class="fm-layout">
+        <div class="fm-sidebar">
+          <div class="fm-sidebar-item active" onclick="navTo('/home/spectra')"><span>🏠</span> Home</div>
+          <div class="fm-sidebar-item" onclick="navTo('/home/spectra/Documents')"><span>📄</span> Documents</div>
+          <div class="fm-sidebar-item" onclick="navTo('/home/spectra/Downloads')"><span>⬇</span> Downloads</div>
+          <div class="fm-sidebar-item" onclick="navTo('/home/spectra/Pictures')"><span>🖼</span> Pictures</div>
+          <div class="fm-sidebar-item" onclick="navTo('/home/spectra/Music')"><span>🎵</span> Music</div>
+          <div class="fm-sidebar-item" onclick="navTo('/')"><span>💻</span> Computer</div>
+        </div>
+        <div class="fm-main" id="fmMain"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const fileSystem={
+      '/':{type:'dir',items:[{n:'home',t:'dir',s:''},{n:'etc',t:'dir',s:''},{n:'usr',t:'dir',s:''},{n:'var',t:'dir',s:''}]},
+      '/home':{type:'dir',items:[{n:'spectra',t:'dir',s:''},{n:'guest',t:'dir',s:''}]},
+      '/home/spectra':{type:'dir',items:[{n:'Documents',t:'dir',s:''},{n:'Downloads',t:'dir',s:''},{n:'Pictures',t:'dir',s:''},{n:'Music',t:'dir',s:''},{n:'notes.txt',t:'file',s:'2.4 KB'},{n:'todo.md',t:'file',s:'1.1 KB'}]},
+      '/home/spectra/Documents':{type:'dir',items:[{n:'project.md',t:'file',s:'5.2 KB'},{n:'resume.pdf',t:'file',s:'120 KB'},{n:'budget.xlsx',t:'file',s:'15 KB'}]},
+      '/home/spectra/Downloads':{type:'dir',items:[{n:'spectra-os.zip',t:'file',s:'45 MB'},{n:'wallpaper.png',t:'file',s:'2.1 MB'},{n:'installer.deb',t:'file',s:'8.5 MB'}]},
+      '/home/spectra/Pictures':{type:'dir',items:[{n:'screenshot1.png',t:'file',s:'1.2 MB'},{n:'screenshot2.png',t:'file',s:'980 KB'},{n:'avatar.jpg',t:'file',s:'340 KB'}]},
+    };
+    let currentPath='/home/spectra',selectedItem=null;
+    function navTo(p){currentPath=p;render();}
+    function goUp(){const parts=currentPath.split('/');if(parts.length>2){parts.pop();currentPath=parts.join('/')||'/';}render();}
+    function render(){renderPath();renderMain();}
+    function renderPath(){const p=document.getElementById('fmPath');const parts=currentPath.split('/').filter(Boolean);p.innerHTML='';let acc='/';parts.forEach(part=>{acc+=part+'/';const btn=document.createElement('button');btn.className='fm-path-btn';btn.textContent=part;btn.onclick=()=>{currentPath=acc;render();};p.appendChild(btn);p.innerHTML+='<span style="opacity:.3">/</span>';});}
+    function renderMain(){const m=document.getElementById('fmMain');const dir=fileSystem[currentPath];if(!dir){m.innerHTML='<div style="opacity:.5;text-align:center;padding:40px;">Empty folder</div>';return;}m.innerHTML='<div class="fm-grid"></div>';const g=m.querySelector('.fm-grid');dir.items.forEach(item=>{const el=document.createElement('div');el.className='fm-item'+(selectedItem===item.n?' selected':'');const icon=item.t==='dir'?'📁':item.n.endsWith('.txt')?'📄':item.n.endsWith('.md')?'📝':item.n.endsWith('.pdf')?'📕':item.n.endsWith('.png')||item.n.endsWith('.jpg')?'🖼':item.n.endsWith('.zip')?'📦':item.n.endsWith('.mp3')?'🎵':'📄';el.innerHTML='<div class="fm-item-icon">'+icon+'</div><div class="fm-item-name">'+item.n+'</div><div class="fm-item-size">'+item.s+'</div>';el.onclick=(e)=>{if(e.ctrlKey){selectedItem=selectedItem===item.n?null:item.n;}else if(item.t==='dir'){currentPath+='/'+item.n;render();}else{selectedItem=item.n;renderMain();}};g.appendChild(el);});}
+    function newFolder(){const name=prompt('Folder name:');if(name){const dir=fileSystem[currentPath];if(dir)dir.items.push({n:name,t:'dir',s:''});render();}}
+    function newFile(){const name=prompt('File name:');if(name){const dir=fileSystem[currentPath];if(dir)dir.items.push({n:name,t:'file',s:'0 B'});render();}}
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Code Editor — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .editor-layout{display:flex;height:calc(100% - 40px);}
+    .editor-sidebar{width:180px;border-right:1px solid rgba(255,255,255,.1);padding:10px;overflow-y:auto;}
+    .file-item{padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s;display:flex;align-items:center;gap:6px;}
+    .file-item:hover,.file-item.active{background:rgba(255,255,255,.1);}
+    .editor-main{flex:1;display:flex;flex-direction:column;}
+    .editor-tabs{display:flex;background:rgba(0,0,0,.2);border-bottom:1px solid rgba(255,255,255,.1);}
+    .editor-tab{padding:8px 16px;font-size:12px;cursor:pointer;border-right:1px solid rgba(255,255,255,.1);transition:all .2s;display:flex;align-items:center;gap:6px;}
+    .editor-tab:hover,.editor-tab.active{background:rgba(255,255,255,.1);}
+    .editor-area{flex:1;display:flex;}
+    .line-numbers{width:40px;background:rgba(0,0,0,.2);padding:10px 5px;text-align:right;font-size:13px;font-family:monospace;color:rgba(255,255,255,.3);line-height:1.6;overflow:hidden;}
+    .code-input{flex:1;background:transparent;border:none;color:#e0e0e0;padding:10px;font-size:13px;font-family:'Fira Code','Consolas',monospace;resize:none;outline:none;line-height:1.6;tab-size:2;}
+    .editor-toolbar{padding:8px 12px;display:flex;gap:8px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.1);}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:700px;height:500px;">
+    <div class="titlebar"><div class="title">💻 Code Editor</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="editor-toolbar">
+        <button class="btn" onclick="newFile()">+ New</button>
+        <button class="btn" onclick="saveFile()">💾 Save</button>
+        <button class="btn" onclick="runCode()">▶ Run</button>
+        <span id="langSel" style="margin-left:auto;font-size:12px;opacity:.6;">JavaScript</span>
+      </div>
+      <div class="editor-layout">
+        <div class="editor-sidebar" id="fileList"></div>
+        <div class="editor-main">
+          <div class="editor-tabs" id="tabs"></div>
+          <div class="editor-area">
+            <div class="line-numbers" id="lineNums">1</div>
+            <textarea class="code-input" id="codeArea" placeholder="// Start coding..." spellcheck="false"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    let files=[{name:'main.js',content:'// Welcome to SpectraOS Code Editor
+function hello() {
+  console.log("Hello, Spectra!");
+}
+
+hello();',lang:'js'},{name:'styles.css',content:'body {
+  background: #0a0a1f;
+  color: #00ff88;
+}',lang:'css'},{name:'index.html',content:'<!DOCTYPE html>
+<html>
+  <head><title>Spectra</title></head>
+  <body>Hello World</body>
+</html>',lang:'html'}];
+    let active=0;
+    function renderFiles(){
+      const list=document.getElementById('fileList');list.innerHTML='';
+      files.forEach((f,i)=>{
+        const el=document.createElement('div');el.className='file-item'+(i===active?' active':'');
+        el.innerHTML=(f.lang==='js'?'📄':f.lang==='css'?'🎨':'🌐')+' '+f.name;
+        el.onclick=()=>{saveCurrent();active=i;renderFiles();loadFile();};list.appendChild(el);
+      });
+    }
+    function renderTabs(){
+      const tabs=document.getElementById('tabs');tabs.innerHTML='';
+      files.forEach((f,i)=>{
+        const el=document.createElement('div');el.className='editor-tab'+(i===active?' active':'');
+        el.textContent=f.name;el.onclick=()=>{saveCurrent();active=i;renderFiles();loadFile();};tabs.appendChild(el);
+      });
+    }
+    function loadFile(){document.getElementById('codeArea').value=files[active].content;updateLines();}
+    function saveCurrent(){files[active].content=document.getElementById('codeArea').value;}
+    function newFile(){const name='untitled'+(files.length+1)+'.js';files.push({name,content:'// New file
+',lang:'js'});active=files.length-1;renderFiles();renderTabs();loadFile();}
+    function saveFile(){showNotif('Saved',files[active].name+' saved successfully');}
+    function runCode(){try{const r=eval(files[active].content);showNotif('Output',String(r!==undefined?r:'Executed'));}catch(e){showNotif('Error',e.message);}}
+    function updateLines(){const n=document.getElementById('codeArea').value.split('
+').length;document.getElementById('lineNums').innerHTML=Array(n).fill(0).map((_,i)=>i+1).join('<br>');}
+    document.getElementById('codeArea').addEventListener('input',updateLines);
+    document.getElementById('codeArea').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,s=t.selectionStart;t.value=t.value.slice(0,s)+'  '+t.value.slice(t.selectionEnd);t.selectionStart=t.selectionEnd=s+2;}});
+    function showNotif(t,b){if(window.parent!==window)window.parent.postMessage({type:'notif',title:t,body:b},'*');}
+    renderFiles();renderTabs();loadFile();updateLines();
+  </script>
+</body>
+</html>

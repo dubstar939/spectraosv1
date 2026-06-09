@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Package Manager — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .pkg-search{display:flex;gap:8px;margin-bottom:15px;}
+    .pkg-list{max-height:280px;overflow-y:auto;}
+    .pkg-item{display:flex;align-items:center;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,.05);margin-bottom:6px;transition:all .2s;}
+    .pkg-item:hover{background:rgba(255,255,255,.1);}
+    .pkg-icon{width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:18px;margin-right:10px;}
+    .pkg-info{flex:1;}
+    .pkg-name{font-size:13px;font-weight:600;}
+    .pkg-desc{font-size:11px;opacity:.5;}
+    .pkg-ver{font-size:11px;opacity:.4;margin-right:10px;}
+    .pkg-status{padding:4px 10px;border-radius:6px;font-size:11px;background:rgba(0,255,136,.15);color:#00ff88;}
+    .pkg-status.installed{background:rgba(255,255,255,.1);color:#888;}
+    .pkg-terminal{background:#0a0a0f;border-radius:8px;padding:10px;font-family:monospace;font-size:12px;height:80px;overflow-y:auto;margin-top:10px;color:#00ff88;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:500px;height:480px;">
+    <div class="titlebar"><div class="title">📦 Package Manager</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="pkg-search">
+        <input type="text" class="input" id="pkgSearch" placeholder="Search packages..." style="flex:1;" oninput="filterPkg()">
+        <button class="btn" onclick="updatePkg()">🔄 Update</button>
+      </div>
+      <div class="pkg-list" id="pkgList"></div>
+      <div class="pkg-terminal" id="pkgTerm">$ spectra-pkg ready</div>
+    </div>
+  </div>
+  <script>
+    const packages=[
+      {n:'spectra-core',d:'Core system libraries',v:'1.0.0',i:true,icon:'◉'},{n:'spectra-wm',d:'Window manager',v:'1.2.0',i:true,icon:'🪟'},
+      {n:'spectra-gtk',d:'GTK theme engine',v:'3.24.0',i:false,icon:'🎨'},{n:'spectra-terminal',d:'Terminal emulator',v:'2.1.0',i:true,icon:'🖥'},
+      {n:'spectra-editor',d:'Text editor',v:'1.5.0',i:false,icon:'📝'},{n:'spectra-media',d:'Media codecs',v:'1.0.0',i:false,icon:'🎵'},
+      {n:'spectra-net',d:'Network tools',v:'2.0.0',i:true,icon:'🌐'},{n:'spectra-dev',d:'Developer tools',v:'1.3.0',i:false,icon:'💻'},
+      {n:'spectra-games',d:'Game engine',v:'0.9.0',i:false,icon:'🎮'},{n:'spectra-security',d:'Security suite',v:'1.1.0',i:true,icon:'🔐'},
+    ];
+    function renderPkg(){
+      const l=document.getElementById('pkgList'),q=document.getElementById('pkgSearch').value.toLowerCase();l.innerHTML='';
+      packages.filter(p=>p.n.toLowerCase().includes(q)||p.d.toLowerCase().includes(q)).forEach(p=>{
+        const el=document.createElement('div');el.className='pkg-item';
+        el.innerHTML='<div class="pkg-icon">'+p.icon+'</div><div class="pkg-info"><div class="pkg-name">'+p.n+'</div><div class="pkg-desc">'+p.d+'</div></div><span class="pkg-ver">'+p.v+'</span><button class="btn" style="padding:4px 12px;font-size:11px;" onclick="togglePkg(''+p.n+'')">'+(p.i?'Remove':'Install')+'</button>';
+        l.appendChild(el);
+      });
+    }
+    function togglePkg(name){const p=packages.find(x=>x.n===name);if(!p)return;const t=document.getElementById('pkgTerm');if(p.i){p.i=false;t.innerHTML+='<br>$ Removing '+name+'...<br>✓ '+name+' removed';}else{p.i=true;t.innerHTML+='<br>$ Installing '+name+'...<br>✓ '+name+' installed';}renderPkg();t.scrollTop=t.scrollHeight;}
+    function updatePkg(){const t=document.getElementById('pkgTerm');t.innerHTML+='<br>$ Updating package list...<br>✓ All packages up to date';t.scrollTop=t.scrollHeight;}
+    function filterPkg(){renderPkg();}
+    renderPkg();
+  </script>
+</body>
+</html>

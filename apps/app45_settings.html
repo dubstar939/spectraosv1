@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Settings — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .set-section{margin:15px;padding:15px;background:rgba(255,255,255,.03);border-radius:12px;border:1px solid rgba(255,255,255,.05);}
+    .set-title{font-size:14px;font-weight:600;margin-bottom:12px;color:#00ff88;}
+    .set-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);}
+    .set-row:last-child{border:none;}
+    .set-label{font-size:13px;}
+    .set-value{font-size:12px;opacity:.6;}
+    .color-dot{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s;}
+    .color-dot:hover,.color-dot.active{border-color:#fff;transform:scale(1.2);}
+    .toggle{width:44px;height:24px;background:rgba(255,255,255,.1);border-radius:12px;position:relative;cursor:pointer;transition:all .3s;}
+    .toggle.on{background:#00ff88;}
+    .toggle::after{content:'';position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:2px;left:2px;transition:all .3s;}
+    .toggle.on::after{left:22px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:420px;height:500px;">
+    <div class="titlebar"><div class="title">⚙️ Settings</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody" style="overflow-y:auto;">
+      <div class="set-section">
+        <div class="set-title">🎨 Appearance</div>
+        <div class="set-row"><span class="set-label">Accent Color</span><div style="display:flex;gap:8px;"><div class="color-dot active" style="background:#00ff88;" onclick="setAccent('#00ff88')"></div><div class="color-dot" style="background:#ff0055;" onclick="setAccent('#ff0055')"></div><div class="color-dot" style="background:#00ccff;" onclick="setAccent('#00ccff')"></div><div class="color-dot" style="background:#ffcc00;" onclick="setAccent('#ffcc00')"></div><div class="color-dot" style="background:#cc00ff;" onclick="setAccent('#cc00ff')"></div></div></div>
+        <div class="set-row"><span class="set-label">Dark Mode</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="set-row"><span class="set-label">Glass Effects</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="set-row"><span class="set-label">Animations</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="set-section">
+        <div class="set-title">🔔 Notifications</div>
+        <div class="set-row"><span class="set-label">Show Notifications</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="set-row"><span class="set-label">Sound Alerts</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+        <div class="set-row"><span class="set-label">Do Not Disturb</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="set-section">
+        <div class="set-title">💾 System</div>
+        <div class="set-row"><span class="set-label">Auto-save</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="set-row"><span class="set-label">Show Hidden Files</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+        <div class="set-row"><span class="set-label">Version</span><span class="set-value">SpectraOS v1.0.0</span></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    function setAccent(c){
+      document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('active'));
+      event.target.classList.add('active');
+      window.parent.postMessage({type:'setAccent',color:c},'*');
+    }
+  </script>
+</body>
+</html>

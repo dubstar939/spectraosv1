@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Virtual FS — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .fs-layout{display:flex;height:calc(100% - 40px);}
+    .fs-tree{width:200px;border-right:1px solid rgba(255,255,255,.1);padding:10px;overflow-y:auto;}
+    .fs-tree-item{padding:5px 8px;border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s;display:flex;align-items:center;gap:6px;}
+    .fs-tree-item:hover,.fs-tree-item.active{background:rgba(255,255,255,.1);}
+    .fs-main{flex:1;padding:15px;overflow-y:auto;}
+    .fs-breadcrumb{display:flex;gap:4px;margin-bottom:15px;font-size:12px;opacity:.6;}
+    .fs-breadcrumb span{cursor:pointer;}
+    .fs-breadcrumb span:hover{color:#00ff88;}
+    .fs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+    .fs-item{padding:15px;border-radius:10px;background:rgba(255,255,255,.05);text-align:center;cursor:pointer;transition:all .2s;border:1px solid transparent;}
+    .fs-item:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.1);transform:translateY(-2px);}
+    .fs-item-icon{font-size:28px;margin-bottom:6px;}
+    .fs-item-name{font-size:11px;word-break:break-all;}
+    .fs-details{margin-top:15px;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;font-size:12px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:600px;height:450px;">
+    <div class="titlebar"><div class="title">💾 Virtual FS</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="fs-layout">
+        <div class="fs-tree" id="fsTree"></div>
+        <div class="fs-main">
+          <div class="fs-breadcrumb" id="fsBreadcrumb"></div>
+          <div class="fs-grid" id="fsGrid"></div>
+          <div class="fs-details" id="fsDetails">Select an item to view details</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const vfs={
+      '/':{type:'dir',items:['home','etc','usr','var','tmp']},
+      '/home':{type:'dir',items:['spectra','guest']},
+      '/home/spectra':{type:'dir',items:['Documents','Downloads','Pictures','Music','.config']},
+      '/home/spectra/Documents':{type:'dir',items:['notes.txt','project.md','todo.list']},
+      '/home/spectra/Downloads':{type:'dir',items:['spectra-os.zip','wallpaper.png']},
+      '/etc':{type:'dir',items:['hosts','passwd','spectra.conf']},
+      '/usr':{type:'dir',items:['bin','lib','share']},
+    };
+    let currentPath='/';
+    function renderTree(){
+      const t=document.getElementById('fsTree');t.innerHTML='';
+      const paths=['/','/home','/home/spectra','/etc','/usr'];
+      paths.forEach(p=>{
+        const el=document.createElement('div');el.className='fs-tree-item'+(p===currentPath?' active':'');
+        el.innerHTML=(p==='/'?'📁':'&nbsp;&nbsp;')+' '+p;el.onclick=()=>{currentPath=p;renderAll();};t.appendChild(el);
+      });
+    }
+    function renderBreadcrumb(){
+      const b=document.getElementById('fsBreadcrumb');const parts=currentPath.split('/').filter(Boolean);b.innerHTML='<span onclick="currentPath='/';renderAll()">/</span>';
+      let acc='/';parts.forEach(p=>{acc+=p+'/';b.innerHTML+='<span onclick="currentPath=''+acc+'';renderAll()">'+p+'/</span>';});
+    }
+    function renderGrid(){
+      const g=document.getElementById('fsGrid');g.innerHTML='';
+      const dir=vfs[currentPath];if(!dir){g.innerHTML='<div style="opacity:.5;text-align:center;grid-column:span 4;">Empty directory</div>';return;}
+      dir.items.forEach(item=>{
+        const isDir=vfs[currentPath+'/'+item]?.type==='dir';
+        const el=document.createElement('div');el.className='fs-item';
+        el.innerHTML='<div class="fs-item-icon">'+(isDir?'📁':item.endsWith('.txt')?'📄':item.endsWith('.md')?'📝':item.endsWith('.png')?'🖼':'📄')+'</div><div class="fs-item-name">'+item+'</div>';
+        el.onclick=()=>{if(isDir){currentPath+='/'+item;renderAll();}else showDetails(item);};g.appendChild(el);
+      });
+    }
+    function showDetails(name){const d=document.getElementById('fsDetails');d.innerHTML='<strong>'+name+'</strong><br>Size: '+Math.floor(Math.random()*1000)+' KB<br>Modified: '+new Date().toLocaleString()+'<br>Permissions: rw-r--r--';}
+    function renderAll(){renderTree();renderBreadcrumb();renderGrid();}
+    renderAll();
+  </script>
+</body>
+</html>

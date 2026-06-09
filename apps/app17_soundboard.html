@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Soundboard — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .sb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:15px;}
+    .sb-pad{padding:20px;border-radius:12px;background:rgba(255,255,255,.05);text-align:center;cursor:pointer;transition:all .15s;border:1px solid rgba(255,255,255,.08);position:relative;overflow:hidden;}
+    .sb-pad:hover{background:rgba(255,255,255,.1);transform:translateY(-2px);border-color:rgba(0,255,136,.2);}
+    .sb-pad:active{transform:scale(0.95);}
+    .sb-pad.playing{box-shadow:0 0 20px rgba(0,255,136,.3);border-color:#00ff88;}
+    .sb-pad-icon{font-size:24px;margin-bottom:8px;}
+    .sb-pad-name{font-size:12px;}
+    .sb-pad-key{font-size:10px;opacity:.4;margin-top:4px;}
+    .sb-visualizer{display:flex;align-items:flex-end;justify-content:center;height:40px;gap:2px;margin:10px 15px;}
+    .sb-vbar{width:4px;background:#00ff88;border-radius:2px;transition:height .1s;min-height:2px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:480px;height:420px;">
+    <div class="titlebar"><div class="title">🔊 Soundboard</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="sb-visualizer" id="sbVis"></div>
+      <div class="sb-grid" id="sbGrid"></div>
+    </div>
+  </div>
+  <script>
+    const AudioContext=window.AudioContext||window.webkitAudioContext;const ctx=new AudioContext();
+    const sounds=[{n:'Kick',i:'🥁',f:60,d:.2},{n:'Snare',i:'🥁',f:200,d:.15},{n:'Hi-Hat',i:'🎩',f:800,d:.1},{n:'Clap',i:'👏',f:400,d:.15},{n:'Bass',i:'🎸',f:80,d:.3},{n:'Lead',i:'🎹',f:440,d:.2},{n:'Pluck',i:'🎻',f:330,d:.1},{n:'FX',i:'✨',f:600,d:.25},{n:'Laser',i:'🔫',f:880,d:.15},{n:'Coin',i:'🪙',f:987,d:.1},{n:'Jump',i:'🏃',f:523,d:.15},{n:'Power',i:'⚡',f:220,d:.3}];
+    function playTone(f,d,type='sine'){const o=ctx.createOscillator();const g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(f,ctx.currentTime);g.gain.setValueAtTime(.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.01,ctx.currentTime+d);o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+d);animateVis();}
+    function animateVis(){const v=document.getElementById('sbVis');v.innerHTML='';for(let i=0;i<30;i++){const b=document.createElement('div');b.className='sb-vbar';b.style.height=Math.random()*35+5+'px';v.appendChild(b);}setTimeout(()=>v.innerHTML='',300);}
+    function initGrid(){const g=document.getElementById('sbGrid');sounds.forEach((s,i)=>{const el=document.createElement('div');el.className='sb-pad';el.innerHTML='<div class="sb-pad-icon">'+s.i+'</div><div class="sb-pad-name">'+s.n+'</div><div class="sb-pad-key">'+(i+1)+'</div>';el.onclick=()=>{el.classList.add('playing');setTimeout(()=>el.classList.remove('playing'),200);playTone(s.f,s.d);};g.appendChild(el);});}
+    document.addEventListener('keydown',e=>{const n=parseInt(e.key);if(n>=1&&n<=sounds.length){const pads=document.querySelectorAll('.sb-pad');pads[n-1].click();}});
+    initGrid();
+  </script>
+</body>
+</html>

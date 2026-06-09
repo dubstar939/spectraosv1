@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>System Monitor — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .sys-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:10px;}
+    .sys-card{padding:15px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);}
+    .sys-card-title{font-size:12px;opacity:.5;margin-bottom:10px;display:flex;justify-content:space-between;}
+    .sys-value{font-size:28px;font-weight:300;}
+    .sys-bar{height:6px;background:rgba(255,255,255,.1);border-radius:3px;margin-top:8px;overflow:hidden;}
+    .sys-bar-fill{height:100%;border-radius:3px;transition:width .5s;}
+    .sys-chart{height:60px;display:flex;align-items:flex-end;gap:2px;margin-top:10px;}
+    .sys-chart-bar{flex:1;background:rgba(0,255,136,.4);border-radius:2px;transition:height .3s;min-height:2px;}
+    .sys-processes{margin-top:10px;max-height:120px;overflow-y:auto;}
+    .sys-proc{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.05);}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:520px;height:460px;">
+    <div class="titlebar"><div class="title">📊 System Monitor</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="sys-grid">
+        <div class="sys-card">
+          <div class="sys-card-title">CPU Usage <span id="cpuVal">0%</span></div>
+          <div class="sys-chart" id="cpuChart"></div>
+          <div class="sys-bar"><div class="sys-bar-fill" id="cpuBar" style="width:0%;background:#00ff88;"></div></div>
+        </div>
+        <div class="sys-card">
+          <div class="sys-card-title">Memory <span id="memVal">0%</span></div>
+          <div class="sys-value" id="memText">0 MB</div>
+          <div class="sys-bar"><div class="sys-bar-fill" id="memBar" style="width:0%;background:#00ccff;"></div></div>
+        </div>
+        <div class="sys-card">
+          <div class="sys-card-title">Disk <span id="diskVal">0%</span></div>
+          <div class="sys-value" id="diskText">0 GB</div>
+          <div class="sys-bar"><div class="sys-bar-fill" id="diskBar" style="width:0%;background:#ffcc00;"></div></div>
+        </div>
+        <div class="sys-card">
+          <div class="sys-card-title">Network</div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:5px;">
+            <span>⬇ <span id="netDown">0</span> KB/s</span>
+            <span>⬆ <span id="netUp">0</span> KB/s</span>
+          </div>
+          <div class="sys-chart" id="netChart" style="margin-top:8px;"></div>
+        </div>
+      </div>
+      <div style="padding:0 10px;">
+        <div style="font-size:12px;opacity:.5;margin-bottom:8px;">Top Processes</div>
+        <div class="sys-processes" id="sysProcs"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const cpuHistory=Array(20).fill(0),netHistory=Array(20).fill(0);
+    function initCharts(){const c=document.getElementById('cpuChart');c.innerHTML='';for(let i=0;i<20;i++){const b=document.createElement('div');b.className='sys-chart-bar';c.appendChild(b);}const n=document.getElementById('netChart');n.innerHTML='';for(let i=0;i<20;i++){const b=document.createElement('div');b.className='sys-chart-bar';b.style.background='rgba(0,204,255,.4)';n.appendChild(b);}}
+    function updateSys(){
+      const cpu=Math.floor(Math.random()*40+10);cpuHistory.push(cpu);cpuHistory.shift();
+      document.getElementById('cpuVal').textContent=cpu+'%';document.getElementById('cpuBar').style.width=cpu+'%';
+      document.querySelectorAll('#cpuChart .sys-chart-bar').forEach((b,i)=>b.style.height=cpuHistory[i]+'%');
+      const mem=Math.floor(Math.random()*30+40);document.getElementById('memVal').textContent=mem+'%';document.getElementById('memText').textContent=(mem*4.8).toFixed(0)+' MB / 16 GB';document.getElementById('memBar').style.width=mem+'%';
+      const disk=Math.floor(Math.random()*20+60);document.getElementById('diskVal').textContent=disk+'%';document.getElementById('diskText').textContent=(disk*2.5).toFixed(0)+' GB / 256 GB';document.getElementById('diskBar').style.width=disk+'%';
+      const down=Math.floor(Math.random()*500),up=Math.floor(Math.random()*200);netHistory.push(down/10);netHistory.shift();
+      document.getElementById('netDown').textContent=down;document.getElementById('netUp').textContent=up;
+      document.querySelectorAll('#netChart .sys-chart-bar').forEach((b,i)=>b.style.height=Math.min(100,netHistory[i])+'%');
+      const procs=[{n:'spectra-wm',c:(Math.random()*5).toFixed(1),m:(Math.random()*50+20).toFixed(0)},{n:'chrome-engine',c:(Math.random()*15).toFixed(1),m:(Math.random()*100+50).toFixed(0)},{n:'node-runtime',c:(Math.random()*8).toFixed(1),m:(Math.random()*60+30).toFixed(0)},{n:'spectra-shell',c:(Math.random()*3).toFixed(1),m:(Math.random()*30+10).toFixed(0)}];
+      document.getElementById('sysProcs').innerHTML=procs.map(p=>`<div class="sys-proc"><span>${p.n}</span><span>CPU: ${p.c}% | MEM: ${p.m}MB</span></div>`).join('');
+    }
+    initCharts();updateSys();setInterval(updateSys,2000);
+  </script>
+</body>
+</html>

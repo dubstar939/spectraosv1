@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weather — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .weather-main{text-align:center;padding:30px;}
+    .weather-temp{font-size:64px;font-weight:300;}
+    .weather-desc{font-size:18px;opacity:.7;margin:10px 0;}
+    .weather-location{font-size:14px;opacity:.5;}
+    .weather-forecast{display:flex;justify-content:space-around;padding:20px;}
+    .weather-day{text-align:center;padding:10px;}
+    .weather-day-name{font-size:12px;opacity:.6;margin-bottom:5px;}
+    .weather-day-temp{font-size:20px;font-weight:600;}
+    .weather-day-icon{font-size:24px;margin:5px 0;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:340px;height:420px;">
+    <div class="titlebar"><div class="title">🌤 Weather</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="weather-main">
+        <div class="weather-temp" id="wTemp">72°</div>
+        <div class="weather-desc" id="wDesc">Partly Cloudy</div>
+        <div class="weather-location">San Francisco, CA</div>
+      </div>
+      <div class="weather-forecast" id="wForecast"></div>
+      <div style="text-align:center;margin-top:10px;">
+        <input type="text" class="input" id="wCity" placeholder="Enter city..." style="width:150px;">
+        <button class="btn" onclick="searchWeather()">Search</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const conditions=[{t:72,d:'Sunny',i:'☀️'},{t:65,d:'Partly Cloudy',i:'⛅'},{t:58,d:'Cloudy',i:'☁️'},{t:52,d:'Rainy',i:'🌧'},{t:45,d:'Stormy',i:'⛈️'},{t:38,d:'Snowy',i:'❄️'}];
+    function searchWeather(){
+      const city=document.getElementById('wCity').value;
+      if(!city) return;
+      const c=conditions[Math.floor(Math.random()*conditions.length)];
+      document.getElementById('wTemp').textContent=c.t+'°';
+      document.getElementById('wDesc').textContent=c.d;
+      document.querySelector('.weather-location').textContent=city;
+      renderForecast();
+    }
+    function renderForecast(){
+      const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+      const f=document.getElementById('wForecast'); f.innerHTML='';
+      for(let i=0;i<5;i++){
+        const c=conditions[Math.floor(Math.random()*conditions.length)];
+        const el=document.createElement('div'); el.className='weather-day';
+        el.innerHTML=`<div class="weather-day-name">${days[i]}</div><div class="weather-day-icon">${c.i}</div><div class="weather-day-temp">${c.t}°</div>`;
+        f.appendChild(el);
+      }
+    }
+    renderForecast();
+  </script>
+</body>
+</html>

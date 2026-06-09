@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Regex Tester — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .regex-row{margin-bottom:12px;}
+    .regex-label{font-size:11px;opacity:.5;margin-bottom:4px;}
+    .regex-input{width:100%;padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e0e0e0;font-family:monospace;font-size:13px;outline:none;}
+    .regex-input:focus{border-color:rgba(0,255,136,.4);}
+    .regex-flags{display:flex;gap:10px;margin:8px 0;}
+    .regex-flag{display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;}
+    .regex-flag input{cursor:pointer;}
+    .regex-textarea{width:100%;height:120px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px;color:#e0e0e0;font-family:monospace;font-size:12px;resize:none;outline:none;}
+    .regex-matches{margin-top:10px;padding:10px;background:rgba(0,0,0,.2);border-radius:8px;font-family:monospace;font-size:12px;min-height:60px;}
+    .match-highlight{background:rgba(0,255,136,.3);padding:1px 3px;border-radius:3px;}
+    .regex-cheat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+    .cheat-item{padding:6px 10px;background:rgba(255,255,255,.05);border-radius:6px;font-size:11px;cursor:pointer;transition:all .2s;}
+    .cheat-item:hover{background:rgba(255,255,255,.1);}
+    .cheat-pattern{color:#00ff88;font-family:monospace;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:600px;height:520px;">
+    <div class="titlebar"><div class="title">🔍 Regex Tester</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="regex-row">
+        <div class="regex-label">Pattern</div>
+        <input type="text" class="regex-input" id="regexPattern" value="\b\w+@\w+\.\w+\b" placeholder="Enter regex pattern...">
+        <div class="regex-flags">
+          <label class="regex-flag"><input type="checkbox" id="flagG" checked> g (global)</label>
+          <label class="regex-flag"><input type="checkbox" id="flagI"> i (ignore case)</label>
+          <label class="regex-flag"><input type="checkbox" id="flagM"> m (multiline)</label>
+        </div>
+      </div>
+      <div class="regex-row">
+        <div class="regex-label">Test Text</div>
+        <textarea class="regex-textarea" id="regexText" placeholder="Enter text to test...">Contact us at support@spectra.os or dev@example.com for help.</textarea>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button class="btn" onclick="testRegex()">Test</button>
+        <button class="btn" onclick="replaceRegex()">Replace</button>
+        <button class="btn" onclick="splitRegex()">Split</button>
+      </div>
+      <div class="regex-matches" id="regexResult">Click Test to see matches</div>
+      <div class="regex-cheat">
+        <div class="cheat-item" onclick="setPattern('.')"><span class="cheat-pattern">.</span> — Any char</div>
+        <div class="cheat-item" onclick="setPattern('\d')"><span class="cheat-pattern">\d</span> — Digit</div>
+        <div class="cheat-item" onclick="setPattern('\w')"><span class="cheat-pattern">\w</span> — Word</div>
+        <div class="cheat-item" onclick="setPattern('[a-z]')"><span class="cheat-pattern">[a-z]</span> — Range</div>
+        <div class="cheat-item" onclick="setPattern('^$')"><span class="cheat-pattern">^$</span> — Start/End</div>
+        <div class="cheat-item" onclick="setPattern('(a|b)')"><span class="cheat-pattern">(a|b)</span> — Or</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    function getFlags(){let f='';if(document.getElementById('flagG').checked)f+='g';if(document.getElementById('flagI').checked)f+='i';if(document.getElementById('flagM').checked)f+='m';return f;}
+    function setPattern(p){document.getElementById('regexPattern').value=p;testRegex();}
+    function testRegex(){try{const p=new RegExp(document.getElementById('regexPattern').value,getFlags());const t=document.getElementById('regexText').value;const m=t.match(p);const r=document.getElementById('regexResult');if(!m){r.innerHTML='<span style="color:#ff0055">No matches found</span>';return;}let h=t.replace(p,'<span class="match-highlight">$&</span>');r.innerHTML='<div style="color:#00ff88;margin-bottom:5px;">'+m.length+' match(es)</div><div>'+h+'</div>';}catch(e){document.getElementById('regexResult').innerHTML='<span style="color:#ff0055">Error: '+e.message+'</span>';}}
+    function replaceRegex(){try{const p=new RegExp(document.getElementById('regexPattern').value,getFlags());const t=document.getElementById('regexText').value;const r=t.replace(p,'[REPLACED]');document.getElementById('regexResult').innerHTML='<div style="color:#00ccff">Result:</div><div>'+r+'</div>';}catch(e){document.getElementById('regexResult').innerHTML='<span style="color:#ff0055">Error: '+e.message+'</span>';}}
+    function splitRegex(){try{const p=new RegExp(document.getElementById('regexPattern').value,getFlags());const t=document.getElementById('regexText').value;const parts=t.split(p);document.getElementById('regexResult').innerHTML='<div style="color:#00ccff">Parts ('+parts.length+'):</div><div>'+parts.map((x,i)=>'['+i+'] '+x).join('<br>')+'</div>';}catch(e){document.getElementById('regexResult').innerHTML='<span style="color:#ff0055">Error: '+e.message+'</span>';}}
+    testRegex();
+  </script>
+</body>
+</html>

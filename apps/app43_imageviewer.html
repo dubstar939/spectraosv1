@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Viewer — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .iv-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;cursor:grab;}
+    .iv-canvas:active{cursor:grabbing;}
+    .iv-toolbar{display:flex;gap:10px;justify-content:center;margin:10px;}
+    .iv-info{text-align:center;font-size:12px;opacity:.5;margin:5px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:500px;height:460px;">
+    <div class="titlebar"><div class="title">🖼 Image Viewer</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="iv-toolbar">
+        <button class="btn" onclick="zoom(1.2)">🔍+</button>
+        <button class="btn" onclick="zoom(0.8)">🔍-</button>
+        <button class="btn" onclick="rotate(90)">↻</button>
+        <button class="btn" onclick="resetIV()">Reset</button>
+        <button class="btn" onclick="nextImg()">Next</button>
+      </div>
+      <canvas id="ivCanvas" class="iv-canvas" width="460" height="300"></canvas>
+      <div class="iv-info" id="ivInfo">Image 1 of 5 • 460×300 • 100%</div>
+    </div>
+  </div>
+  <script>
+    const c=document.getElementById('ivCanvas'), ctx=c.getContext('2d');
+    let zoomLevel=1, rotation=0, panX=0, panY=0, currentImg=0;
+    const images=['#ff0055','#00ff88','#00ccff','#ffcc00','#cc00ff'];
+    function drawImg(){
+      ctx.save();
+      ctx.clearRect(0,0,460,300);
+      ctx.translate(230+panX,150+panY);
+      ctx.rotate(rotation*Math.PI/180);
+      ctx.scale(zoomLevel,zoomLevel);
+      ctx.fillStyle=images[currentImg];
+      ctx.fillRect(-100,-75,200,150);
+      ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=2; ctx.strokeRect(-100,-75,200,150);
+      ctx.fillStyle='#fff'; ctx.font='14px monospace'; ctx.textAlign='center';
+      ctx.fillText('IMG_'+String(currentImg+1).padStart(3,'0')+'.png',0,5);
+      ctx.restore();
+      document.getElementById('ivInfo').textContent='Image '+(currentImg+1)+' of '+images.length+' • '+Math.round(460*zoomLevel)+'×'+Math.round(300*zoomLevel)+' • '+Math.round(zoomLevel*100)+'%';
+    }
+    function zoom(f){zoomLevel=Math.max(0.2,Math.min(5,zoomLevel*f)); drawImg();}
+    function rotate(d){rotation=(rotation+d)%360; drawImg();}
+    function resetIV(){zoomLevel=1;rotation=0;panX=0;panY=0;drawImg();}
+    function nextImg(){currentImg=(currentImg+1)%images.length;resetIV();}
+    let dragging=false, lastX, lastY;
+    c.addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;});
+    c.addEventListener('mousemove',e=>{if(!dragging)return;panX+=e.clientX-lastX;panY+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;drawImg();});
+    c.addEventListener('mouseup',()=>dragging=false);
+    c.addEventListener('mouseleave',()=>dragging=false);
+    drawImg();
+  </script>
+</body>
+</html>

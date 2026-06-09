@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Physics Toy — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    #phys-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;cursor:crosshair;}
+    .phys-controls{display:flex;gap:10px;justify-content:center;margin:10px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:620px;height:520px;">
+    <div class="titlebar"><div class="title">🔮 Physics Toy</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <canvas id="phys-canvas" width="580" height="380"></canvas>
+      <div class="phys-controls">
+        <button class="btn" onclick="addBox()">Add Box</button>
+        <button class="btn" onclick="addBall()">Add Ball</button>
+        <button class="btn" onclick="bodies=[]">Clear</button>
+        <button class="btn" onclick="gravity=gravity>0?0:0.5">Toggle Gravity</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const c=document.getElementById('phys-canvas'), ctx=c.getContext('2d');
+    let bodies=[], gravity=0.5;
+    function addBox(){bodies.push({type:'box',x:Math.random()*500+20,y:20,w:30+Math.random()*30,h:30+Math.random()*30,vx:0,vy:0,angle:0,color:'hsl('+Math.random()*360+',70%,60%)'});}
+    function addBall(){bodies.push({type:'ball',x:Math.random()*500+20,y:20,r:15+Math.random()*15,vx:0,vy:0,angle:0,color:'hsl('+Math.random()*360+',70%,60%)'});}
+    for(let i=0;i<5;i++) Math.random()>0.5?addBox():addBall();
+    c.addEventListener('click',e=>{const r=c.getBoundingClientRect(); bodies.push({type:'ball',x:e.clientX-r.left,y:e.clientY-r.top,r:20,vx:(Math.random()-.5)*5,vy:-5,angle:0,color:'hsl('+Math.random()*360+',70%,60%)'});});
+    function update(){
+      bodies.forEach(b=>{
+        b.vy+=gravity; b.x+=b.vx; b.y+=b.vy; b.angle+=b.vx*0.02;
+        if(b.type==='box'){if(b.x<0||b.x+b.w>580) b.vx*=-0.7; if(b.y+b.h>380){b.y=380-b.h; b.vy*=-0.6; b.vx*=0.95;}}
+        else{if(b.x-b.r<0||b.x+b.r>580) b.vx*=-0.7; if(b.y+b.r>380){b.y=380-b.r; b.vy*=-0.6; b.vx*=0.95;}}
+      });
+    }
+    function draw(){
+      ctx.fillStyle='#0a0a0f'; ctx.fillRect(0,0,580,380);
+      bodies.forEach(b=>{
+        ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.angle);
+        ctx.fillStyle=b.color; ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.lineWidth=1;
+        if(b.type==='box'){ctx.fillRect(-b.w/2,-b.h/2,b.w,b.h); ctx.strokeRect(-b.w/2,-b.h/2,b.w,b.h);}
+        else{ctx.beginPath(); ctx.arc(0,0,b.r,0,Math.PI*2); ctx.fill(); ctx.stroke();}
+        ctx.restore();
+      });
+      requestAnimationFrame(()=>{update();draw();});
+    }
+    draw();
+  </script>
+</body>
+</html>

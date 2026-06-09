@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Music Player — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .mp-visualizer{display:flex;align-items:flex-end;justify-content:center;height:80px;gap:3px;margin:15px;}
+    .mp-bar{width:6px;background:linear-gradient(to top,#00ff88,#00ccff);border-radius:3px;transition:height .1s;}
+    .mp-controls{display:flex;justify-content:center;gap:15px;align-items:center;margin:15px;}
+    .mp-btn{width:45px;height:45px;border-radius:50%;border:none;background:rgba(255,255,255,.1);color:#fff;font-size:18px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+    .mp-btn:hover{background:rgba(255,255,255,.2);transform:scale(1.1);}
+    .mp-btn.play{background:#00ff88;color:#000;}
+    .mp-playlist{max-height:180px;overflow-y:auto;padding:0 15px;}
+    .mp-track{padding:8px 12px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all .2s;}
+    .mp-track:hover,.mp-track.active{background:rgba(255,255,255,.1);}
+    .mp-track-info{font-size:13px;}
+    .mp-track-time{font-size:11px;opacity:.5;}
+    .mp-progress{height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin:0 15px 10px;cursor:pointer;}
+    .mp-progress-fill{height:100%;background:#00ff88;border-radius:2px;width:0%;transition:width .3s;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:360px;height:480px;">
+    <div class="titlebar"><div class="title">🎵 Music Player</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="mp-visualizer" id="mpVis"></div>
+      <div style="text-align:center;font-size:14px;font-weight:600;margin-bottom:5px;" id="mpTitle">Select a track</div>
+      <div style="text-align:center;font-size:12px;opacity:.5;margin-bottom:10px;" id="mpArtist">—</div>
+      <div class="mp-progress" onclick="seek(event)"><div class="mp-progress-fill" id="mpProg"></div></div>
+      <div class="mp-controls">
+        <button class="mp-btn" onclick="prevTrack()">⏮</button>
+        <button class="mp-btn play" id="mpPlay" onclick="togglePlay()">▶</button>
+        <button class="mp-btn" onclick="nextTrack()">⏭</button>
+      </div>
+      <div class="mp-playlist" id="mpList"></div>
+    </div>
+  </div>
+  <script>
+    const tracks=[{t:'Neon Dreams',a:'Spectra',d:'3:24'},{t:'Cyber Pulse',a:'GridRunner',d:'4:12'},{t:'Midnight Code',a:'DevNull',d:'2:58'},{t:'Quantum Loop',a:'BitWave',d:'3:45'},{t:'Data Stream',a:'Packet',d:'3:10'}];
+    let current=0, playing=false, progress=0, interval;
+    function renderVis(){
+      const v=document.getElementById('mpVis'); v.innerHTML='';
+      for(let i=0;i<30;i++){const b=document.createElement('div');b.className='mp-bar';b.style.height=playing?Math.random()*60+10+'px':'8px';v.appendChild(b);}
+    }
+    function renderList(){
+      const l=document.getElementById('mpList'); l.innerHTML='';
+      tracks.forEach((t,i)=>{
+        const el=document.createElement('div'); el.className='mp-track'+(i===current?' active':'');
+        el.innerHTML=`<span class="mp-track-info">${i+1}. ${t.t} — ${t.a}</span><span class="mp-track-time">${t.d}</span>`;
+        el.onclick=()=>{current=i;loadTrack();}; l.appendChild(el);
+      });
+    }
+    function loadTrack(){
+      document.getElementById('mpTitle').textContent=tracks[current].t;
+      document.getElementById('mpArtist').textContent=tracks[current].a;
+      progress=0; document.getElementById('mpProg').style.width='0%';
+      renderList();
+    }
+    function togglePlay(){playing=!playing; document.getElementById('mpPlay').textContent=playing?'⏸':'▶'; if(playing){interval=setInterval(()=>{progress+=0.5;document.getElementById('mpProg').style.width=progress+'%';if(progress>=100)nextTrack();renderVis();},200);}else{clearInterval(interval);}}
+    function nextTrack(){current=(current+1)%tracks.length; loadTrack(); if(playing)togglePlay();togglePlay();}
+    function prevTrack(){current=(current-1+tracks.length)%tracks.length; loadTrack(); if(playing)togglePlay();togglePlay();}
+    function seek(e){const r=e.target.getBoundingClientRect(); progress=((e.clientX-r.left)/r.width)*100; document.getElementById('mpProg').style.width=progress+'%';}
+    renderVis(); renderList(); loadTrack();
+  </script>
+</body>
+</html>

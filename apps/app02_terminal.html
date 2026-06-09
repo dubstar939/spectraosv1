@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Terminal — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .term-body{background:#0a0a0f;padding:12px;font-family:'Fira Code','Consolas',monospace;font-size:13px;line-height:1.6;height:calc(100% - 36px);overflow-y:auto;}
+    .term-line{margin:2px 0;}
+    .term-prompt{color:#00ff88;}
+    .term-input{background:transparent;border:none;color:#e0e0e0;font-family:inherit;font-size:13px;outline:none;width:calc(100% - 120px);caret-color:#00ff88;}
+    .term-output{color:#ccc;}
+    .term-error{color:#ff0055;}
+    .term-success{color:#00ff88;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:600px;height:400px;">
+    <div class="titlebar"><div class="title">🖥 Terminal</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody" style="padding:0;">
+      <div class="term-body" id="termBody">
+        <div class="term-line">SpectraOS Terminal v1.0.0 — Type 'help' for commands</div>
+        <div class="term-line" id="inputLine"><span class="term-prompt">spectra@os:~$</span> <input type="text" class="term-input" id="termInput" autofocus onkeypress="if(event.key==='Enter')runCmd()"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const fs={home:['Documents','Downloads','Pictures','Music','Projects'],Documents:['notes.txt','todo.md'],Projects:['spectra-os','web-app','api-server']};
+    let cwd='home';
+    function runCmd(){
+      const input=document.getElementById('termInput');const cmd=input.value.trim();if(!cmd)return;
+      const line=document.createElement('div');line.className='term-line';line.innerHTML='<span class="term-prompt">spectra@os:~$</span> '+cmd;
+      document.getElementById('termBody').insertBefore(line,document.getElementById('inputLine'));
+      const out=document.createElement('div');out.className='term-line term-output';
+      const parts=cmd.split(' ');
+      switch(parts[0]){
+        case 'help':out.innerHTML='Available: help, ls, cd, pwd, cat, mkdir, rm, clear, whoami, date, echo, ps, neofetch';break;
+        case 'ls':out.innerHTML=(fs[cwd]||[]).map(f=>'<span style="color:#00ccff">'+f+'</span>').join('  ')||'(empty)';break;
+        case 'cd':if(parts[1]==='..')cwd='home';else if(fs[cwd]?.includes(parts[1]))cwd=parts[1];else out.innerHTML='<span class="term-error">No such directory</span>';break;
+        case 'pwd':out.textContent='/home/'+cwd;break;
+        case 'cat':out.textContent='This is a sample file content.
+Line 2 of the file.
+End of file.';break;
+        case 'mkdir':if(parts[1]){fs[cwd]=fs[cwd]||[];fs[cwd].push(parts[1]);out.innerHTML='<span class="term-success">Created '+parts[1]+'</span>';}break;
+        case 'rm':out.innerHTML='<span class="term-success">Removed '+parts[1]+'</span>';break;
+        case 'clear':document.getElementById('termBody').innerHTML='';break;
+        case 'whoami':out.textContent='spectra';break;
+        case 'date':out.textContent=new Date().toString();break;
+        case 'echo':out.textContent=parts.slice(1).join(' ');break;
+        case 'ps':out.innerHTML='PID  CMD<br>1    spectra-shell<br>42   spectra-wm<br>1337 node-runtime';break;
+        case 'neofetch':out.innerHTML='<span style="color:#00ff88">◉ SPECTRA</span><br>OS: SpectraOS v1.0<br>Kernel: WebKit 600+<br>Shell: spectra-sh<br>DE: SpectraWM<br>Theme: Neon-Dark<br>Icons: Spectra-Icons';break;
+        default:out.innerHTML='<span class="term-error">Command not found: '+parts[0]+'</span>';
+      }
+      if(parts[0]!=='clear')document.getElementById('termBody').insertBefore(out,document.getElementById('inputLine'));
+      input.value='';document.getElementById('termBody').scrollTop=document.getElementById('termBody').scrollHeight;
+    }
+    document.getElementById('termBody').addEventListener('click',()=>document.getElementById('termInput').focus());
+  </script>
+</body>
+</html>

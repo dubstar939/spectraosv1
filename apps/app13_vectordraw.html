@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vector Draw — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .vd-layout{display:flex;height:calc(100% - 40px);}
+    .vd-tools{width:60px;display:flex;flex-direction:column;gap:8px;padding:10px;align-items:center;}
+    .vd-tool{width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all .2s;border:1px solid transparent;}
+    .vd-tool:hover,.vd-tool.active{background:rgba(255,255,255,.15);border-color:rgba(0,255,136,.3);}
+    .vd-props{width:140px;border-left:1px solid rgba(255,255,255,.1);padding:10px;}
+    .vd-prop{margin-bottom:12px;}
+    .vd-prop-label{font-size:10px;opacity:.5;margin-bottom:4px;}
+    .vd-canvas-area{flex:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);}
+    #vdCanvas{cursor:crosshair;background:#0a0a0f;border-radius:8px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:640px;height:500px;">
+    <div class="titlebar"><div class="title">✏️ Vector Draw</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="vd-layout">
+        <div class="vd-tools">
+          <div class="vd-tool active" onclick="setVTool('select')" title="Select">🔍</div>
+          <div class="vd-tool" onclick="setVTool('rect')" title="Rectangle">▭</div>
+          <div class="vd-tool" onclick="setVTool('circle')" title="Circle">◯</div>
+          <div class="vd-tool" onclick="setVTool('line')" title="Line">╱</div>
+          <div class="vd-tool" onclick="setVTool('path')" title="Path">〰</div>
+          <div class="vd-tool" onclick="setVTool('text')" title="Text">T</div>
+          <div class="vd-tool" onclick="clearVDraw()" title="Clear">🗑</div>
+        </div>
+        <div class="vd-canvas-area">
+          <canvas id="vdCanvas" width="480" height="360"></canvas>
+        </div>
+        <div class="vd-props">
+          <div class="vd-prop"><div class="vd-prop-label">Stroke</div><input type="color" class="input" id="vdStroke" value="#00ff88" style="width:100%;height:30px;padding:0;border:none;"></div>
+          <div class="vd-prop"><div class="vd-prop-label">Fill</div><input type="color" class="input" id="vdFill" value="#00ff88" style="width:100%;height:30px;padding:0;border:none;opacity:.5;"></div>
+          <div class="vd-prop"><div class="vd-prop-label">Width</div><input type="range" class="input" id="vdWidth" min="1" max="20" value="2" style="width:100%;"></div>
+          <div class="vd-prop"><div class="vd-prop-label">Opacity</div><input type="range" class="input" id="vdOpacity" min="0" max="100" value="80" style="width:100%;"></div>
+          <button class="btn" onclick="downloadVDraw()" style="width:100%;margin-top:10px;">Download SVG</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const c=document.getElementById('vdCanvas'),ctx=c.getContext('2d');
+    let vtool='select',shapes=[],currentShape=null,drawing=false,startX,startY;
+    function setVTool(t){vtool=t;document.querySelectorAll('.vd-tool').forEach(x=>x.classList.remove('active'));event.target.classList.add('active');}
+    function clearVDraw(){shapes=[];drawV();}
+    function drawV(){ctx.fillStyle='#0a0a0f';ctx.fillRect(0,0,480,360);shapes.forEach(s=>{ctx.strokeStyle=s.stroke;ctx.fillStyle=s.fill;ctx.lineWidth=s.width;ctx.globalAlpha=s.opacity/100;if(s.type==='rect'){ctx.fillRect(s.x,s.y,s.w,s.h);ctx.strokeRect(s.x,s.y,s.w,s.h);}else if(s.type==='circle'){ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();ctx.stroke();}else if(s.type==='line'){ctx.beginPath();ctx.moveTo(s.x1,s.y1);ctx.lineTo(s.x2,s.y2);ctx.stroke();}ctx.globalAlpha=1;});}
+    c.addEventListener('mousedown',e=>{const r=c.getBoundingClientRect();startX=e.clientX-r.left;startY=e.clientY-r.top;drawing=true;if(vtool==='rect'||vtool==='circle')currentShape={type:vtool,x:startX,y:startY,w:0,h:0,r:0,stroke:document.getElementById('vdStroke').value,fill:document.getElementById('vdFill').value,width:parseInt(document.getElementById('vdWidth').value),opacity:parseInt(document.getElementById('vdOpacity').value)};else if(vtool==='line')currentShape={type:'line',x1:startX,y1:startY,x2:startX,y2:startY,stroke:document.getElementById('vdStroke').value,width:parseInt(document.getElementById('vdWidth').value),opacity:parseInt(document.getElementById('vdOpacity').value)};});
+    c.addEventListener('mousemove',e=>{if(!drawing||!currentShape)return;const r=c.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;if(currentShape.type==='rect'){currentShape.w=x-startX;currentShape.h=y-startY;}else if(currentShape.type==='circle'){currentShape.r=Math.sqrt((x-startX)**2+(y-startY)**2);}else if(currentShape.type==='line'){currentShape.x2=x;currentShape.y2=y;}drawV();if(currentShape.type==='rect'){ctx.strokeStyle=currentShape.stroke;ctx.strokeRect(startX,startY,x-startX,y-startY);}else if(currentShape.type==='circle'){ctx.beginPath();ctx.arc(startX,startY,Math.sqrt((x-startX)**2+(y-startY)**2),0,Math.PI*2);ctx.stroke();}else if(currentShape.type==='line'){ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(x,y);ctx.stroke();}});
+    c.addEventListener('mouseup',()=>{if(drawing&&currentShape){shapes.push(currentShape);currentShape=null;}drawing=false;drawV();});
+    function downloadVDraw(){let svg='<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360">';shapes.forEach(s=>{if(s.type==='rect')svg+=`<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.width}" opacity="${s.opacity/100}"/>`;else if(s.type==='circle')svg+=`<circle cx="${s.x}" cy="${s.y}" r="${s.r}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${s.width}" opacity="${s.opacity/100}"/>`;else if(s.type==='line')svg+=`<line x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}" stroke="${s.stroke}" stroke-width="${s.width}" opacity="${s.opacity/100}"/>`;});svg+='</svg>';const blob=new Blob([svg],{type:'image/svg+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='drawing.svg';a.click();}
+    drawV();
+  </script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pong — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    #pong-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);}
+    .pong-score{text-align:center;font-size:24px;margin:10px;font-family:monospace;}
+    .pong-controls{text-align:center;font-size:12px;opacity:.7;margin:5px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:420px;height:380px;">
+    <div class="titlebar"><div class="title">🏓 Pong</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="pong-score"><span id="p1Score">0</span> — <span id="p2Score">0</span></div>
+      <canvas id="pong-canvas" width="380" height="240"></canvas>
+      <div class="pong-controls">W/S or ↑/↓ to move • Click to start</div>
+      <div style="text-align:center;margin-top:5px;"><button class="btn" onclick="initPong()">New Game</button></div>
+    </div>
+  </div>
+  <script>
+    const c=document.getElementById('pong-canvas'),ctx=c.getContext('2d');
+    let p1Y=80,p2Y=80,ballX=190,ballY=120,ballDX=3,ballDY=2,p1Score=0,p2Score=0,gameRunning=false;
+    const PADDLE_H=60,PADDLE_W=8,BALL=8;
+    function initPong(){p1Y=80;p2Y=80;ballX=190;ballY=120;ballDX=3*(Math.random()>.5?1:-1);ballDY=2*(Math.random()>.5?1:-1);p1Score=0;p2Score=0;gameRunning=false;updateScore();drawPong();}
+    function updateScore(){document.getElementById('p1Score').textContent=p1Score;document.getElementById('p2Score').textContent=p2Score;}
+    function drawPong(){ctx.fillStyle='#0a0a0f';ctx.fillRect(0,0,380,240);ctx.fillStyle='rgba(255,255,255,.1)';for(let y=0;y<240;y+=20)ctx.fillRect(189,y,2,10);ctx.fillStyle='#00ff88';ctx.fillRect(10,p1Y,PADDLE_W,PADDLE_H);ctx.fillStyle='#00ccff';ctx.fillRect(362,p2Y,PADDLE_W,PADDLE_H);ctx.fillStyle='#ffcc00';ctx.beginPath();ctx.arc(ballX,ballY,BALL/2,0,Math.PI*2);ctx.fill();}
+    function updatePong(){if(!gameRunning)return;ballX+=ballDX;ballY+=ballDY;if(ballY<=0||ballY>=240)ballDY=-ballDY;if(ballX<=18&&ballY>=p1Y&&ballY<=p1Y+PADDLE_H){ballDX=-ballDX*1.05;ballX=18;}if(ballX>=362&&ballY>=p2Y&&ballY<=p2Y+PADDLE_H){ballDX=-ballDX*1.05;ballX=362;}if(ballX<0){p2Score++;updateScore();resetBall();}if(ballX>380){p1Score++;updateScore();resetBall();}p2Y+=(ballY-(p2Y+PADDLE_H/2))*.08;p2Y=Math.max(0,Math.min(180,p2Y));drawPong();requestAnimationFrame(updatePong);}
+    function resetBall(){ballX=190;ballY=120;ballDX=3*(Math.random()>.5?1:-1);ballDY=2*(Math.random()>.5?1:-1);}
+    let keys={};
+    document.addEventListener('keydown',e=>{keys[e.key]=true;if(e.key==='w')p1Y=Math.max(0,p1Y-15);if(e.key==='s')p1Y=Math.min(180,p1Y+15);if(e.key==='ArrowUp')p1Y=Math.max(0,p1Y-15);if(e.key==='ArrowDown')p1Y=Math.min(180,p1Y+15);});
+    document.addEventListener('keyup',e=>keys[e.key]=false);
+    c.addEventListener('click',()=>{if(!gameRunning){gameRunning=true;updatePong();}});
+    initPong();
+  </script>
+</body>
+</html>

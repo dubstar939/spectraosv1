@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Markdown Editor — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .md-layout{display:flex;height:calc(100% - 40px);gap:10px;}
+    .md-panel{flex:1;display:flex;flex-direction:column;}
+    .md-label{font-size:11px;opacity:.5;margin-bottom:5px;}
+    .md-input{flex:1;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px;color:#e0e0e0;font-family:monospace;font-size:13px;resize:none;outline:none;line-height:1.6;}
+    .md-preview{flex:1;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:15px;overflow:auto;font-size:14px;line-height:1.6;}
+    .md-preview h1,.md-preview h2,.md-preview h3{color:#00ff88;margin:10px 0;}
+    .md-preview code{background:rgba(0,255,136,.1);padding:2px 6px;border-radius:4px;font-family:monospace;}
+    .md-preview pre{background:rgba(0,0,0,.3);padding:10px;border-radius:8px;overflow:auto;}
+    .md-preview blockquote{border-left:3px solid #00ff88;padding-left:10px;margin:10px 0;opacity:.8;}
+    .md-preview ul,.md-preview ol{margin:10px 0;padding-left:20px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:700px;height:480px;">
+    <div class="titlebar"><div class="title">📝 Markdown Editor</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button class="btn" onclick="insertMD('# ')">H1</button>
+        <button class="btn" onclick="insertMD('## ')">H2</button>
+        <button class="btn" onclick="insertMD('**bold**')">Bold</button>
+        <button class="btn" onclick="insertMD('*italic*')">Italic</button>
+        <button class="btn" onclick="insertMD('`code`')">Code</button>
+        <button class="btn" onclick="insertMD('
+```
+
+```')">Block</button>
+        <button class="btn" onclick="insertMD('
+- ')">List</button>
+        <button class="btn" onclick="downloadMD()">Download</button>
+      </div>
+      <div class="md-layout">
+        <div class="md-panel">
+          <div class="md-label">Editor</div>
+          <textarea class="md-input" id="mdInput" placeholder="Write markdown..."># Welcome to SpectraOS
+
+This is a **markdown** editor with *live preview*.
+
+## Features
+- Live preview
+- Syntax highlighting
+- Export to file
+
+```javascript
+console.log("Hello Spectra!");
+```
+
+> SpectraOS: A web-based Linux desktop environment.</textarea>
+        </div>
+        <div class="md-panel">
+          <div class="md-label">Preview</div>
+          <div class="md-preview" id="mdPreview"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    function parseMD(text){
+      return text
+        .replace(/^### (.*$)/gim,'<h3>$1</h3>')
+        .replace(/^## (.*$)/gim,'<h2>$1</h2>')
+        .replace(/^# (.*$)/gim,'<h1>$1</h1>')
+        .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g,'<em>$1</em>')
+        .replace(/`(.*?)`/g,'<code>$1</code>')
+        .replace(/```([\s\S]*?)```/g,'<pre><code>$1</code></pre>')
+        .replace(/^\> (.*$)/gim,'<blockquote>$1</blockquote>')
+        .replace(/^\- (.*$)/gim,'<ul><li>$1</li></ul>')
+        .replace(/
+/gim,'<br>');
+    }
+    function updatePreview(){document.getElementById('mdPreview').innerHTML=parseMD(document.getElementById('mdInput').value);}
+    function insertMD(t){const a=document.getElementById('mdInput'),s=a.selectionStart;a.value=a.value.slice(0,s)+t+a.value.slice(a.selectionEnd);a.selectionStart=a.selectionEnd=s+t.length;updatePreview();}
+    function downloadMD(){const b=new Blob([document.getElementById('mdInput').value],{type:'text/markdown'});const u=URL.createObjectURL(b);const l=document.createElement('a');l.href=u;l.download='document.md';l.click();}
+    document.getElementById('mdInput').addEventListener('input',updatePreview);
+    updatePreview();
+  </script>
+</body>
+</html>

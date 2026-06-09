@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Logo Playground — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    #logo-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;}
+    .logo-controls{padding:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+    .logo-preview{text-align:center;padding:20px;background:rgba(255,255,255,.05);border-radius:8px;margin:10px;}
+    #logoText{font-size:32px;font-weight:700;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:480px;height:520px;">
+    <div class="titlebar"><div class="title">🔤 Logo Playground</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="logo-preview"><div id="logoText">SPECTRA</div></div>
+      <div class="logo-controls">
+        <div><label style="font-size:11px;opacity:.6;">Text</label><input type="text" class="input" id="lgText" value="SPECTRA" oninput="updateLogo()"></div>
+        <div><label style="font-size:11px;opacity:.6;">Font Size</label><input type="range" class="input" id="lgSize" min="20" max="80" value="32" oninput="updateLogo()"></div>
+        <div><label style="font-size:11px;opacity:.6;">Color</label><input type="color" class="input" id="lgColor" value="#00ff88" onchange="updateLogo()"></div>
+        <div><label style="font-size:11px;opacity:.6;">Background</label><input type="color" class="input" id="lgBg" value="#0a0a1f" onchange="updateLogo()"></div>
+        <div><label style="font-size:11px;opacity:.6;">Style</label><select class="input" id="lgStyle" onchange="updateLogo()"><option>Normal</option><option>Italic</option><option>Bold</option><option>Neon Glow</option><option>Outline</option></select></div>
+        <div><label style="font-size:11px;opacity:.6;">Spacing</label><input type="range" class="input" id="lgSpace" min="0" max="20" value="2" oninput="updateLogo()"></div>
+      </div>
+      <div style="text-align:center;margin-top:10px;"><button class="btn" onclick="downloadLogo()">Download PNG</button></div>
+    </div>
+  </div>
+  <script>
+    function updateLogo(){
+      const t=document.getElementById('logoText');
+      t.textContent=document.getElementById('lgText').value;
+      t.style.fontSize=document.getElementById('lgSize').value+'px';
+      t.style.color=document.getElementById('lgColor').value;
+      t.style.background=document.getElementById('lgBg').value;
+      t.style.letterSpacing=document.getElementById('lgSpace').value+'px';
+      const s=document.getElementById('lgStyle').value;
+      t.style.fontStyle=s==='Italic'?'italic':'normal';
+      t.style.fontWeight=s==='Bold'?'800':'700';
+      t.style.textShadow=s==='Neon Glow'?'0 0 20px '+document.getElementById('lgColor').value+',0 0 40px '+document.getElementById('lgColor').value:'none';
+      t.style.webkitTextStroke=s==='Outline'?'2px '+document.getElementById('lgColor').value:'none';
+      t.style.color=s==='Outline'?'transparent':document.getElementById('lgColor').value;
+    }
+    function downloadLogo(){const canvas=document.createElement('canvas');canvas.width=400;canvas.height=200;const ctx=canvas.getContext('2d');ctx.fillStyle=document.getElementById('lgBg').value;ctx.fillRect(0,0,400,200);ctx.font='bold '+document.getElementById('lgSize').value+'px monospace';ctx.fillStyle=document.getElementById('lgColor').value;ctx.textAlign='center';ctx.fillText(document.getElementById('lgText').value,200,110);const a=document.createElement('a');a.href=canvas.toDataURL();a.download='logo.png';a.click();}
+    updateLogo();
+  </script>
+</body>
+</html>

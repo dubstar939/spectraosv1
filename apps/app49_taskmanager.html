@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Task Manager — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .tm-header{display:flex;gap:15px;padding:10px 15px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.1);}
+    .tm-tab{padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s;}
+    .tm-tab:hover,.tm-tab.active{background:rgba(0,255,136,.15);color:#00ff88;}
+    .tm-list{max-height:300px;overflow-y:auto;padding:10px;}
+    .tm-item{display:flex;align-items:center;padding:8px 12px;border-radius:6px;margin-bottom:4px;transition:all .2s;}
+    .tm-item:hover{background:rgba(255,255,255,.05);}
+    .tm-icon{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:14px;margin-right:10px;}
+    .tm-info{flex:1;}
+    .tm-name{font-size:13px;}
+    .tm-detail{font-size:11px;opacity:.5;}
+    .tm-cpu{width:60px;text-align:right;font-size:12px;}
+    .tm-mem{width:60px;text-align:right;font-size:12px;}
+    .tm-bar{height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:3px;overflow:hidden;}
+    .tm-bar-fill{height:100%;background:#00ff88;border-radius:2px;transition:width .5s;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:480px;height:440px;">
+    <div class="titlebar"><div class="title">📊 Task Manager</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="tm-header">
+        <div class="tm-tab active">Processes</div>
+        <div class="tm-tab">Performance</div>
+        <div class="tm-tab">Startup</div>
+      </div>
+      <div class="tm-list" id="tmList"></div>
+    </div>
+  </div>
+  <script>
+    const processes=[
+      {n:'spectra-shell',icon:'🖥',cpu:2.1,mem:45},{n:'spectra-wm',icon:'🪟',cpu:1.8,mem:32},{n:'spectra-fs',icon:'📁',cpu:0.5,mem:12},
+      {n:'chrome-engine',icon:'🌐',cpu:8.3,mem:156},{n:'node-runtime',icon:'⬢',cpu:4.2,mem:89},{n:'spectra-audio',icon:'🔊',cpu:0.8,mem:18},
+      {n:'spectra-gpu',icon:'🎮',cpu:12.5,mem:234},{n:'spectra-net',icon:'🌐',cpu:1.2,mem:28},{n:'spectra-crypto',icon:'🔐',cpu:0.3,mem:8},
+      {n:'spectra-update',icon:'⬆',cpu:0.1,mem:5},{n:'spectra-backup',icon:'💾',cpu:0.4,mem:15},{n:'spectra-index',icon:'🔍',cpu:0.9,mem:22},
+    ];
+    function renderTM(){
+      const l=document.getElementById('tmList'); l.innerHTML='';
+      processes.forEach(p=>{
+        p.cpu=Math.max(0.1,p.cpu+(Math.random()-.5)*2);p.mem=Math.max(5,p.mem+(Math.random()-.5)*5);
+        const el=document.createElement('div');el.className='tm-item';
+        el.innerHTML=`<div class="tm-icon">${p.icon}</div><div class="tm-info"><div class="tm-name">${p.n}</div><div class="tm-bar"><div class="tm-bar-fill" style="width:${p.cpu*3}%;background:${p.cpu>10?'#ff0055':p.cpu>5?'#ffcc00':'#00ff88'}"></div></div></div><div class="tm-cpu">${p.cpu.toFixed(1)}%</div><div class="tm-mem">${p.mem.toFixed(0)}MB</div>`;
+        l.appendChild(el);
+      });
+    }
+    renderTM(); setInterval(renderTM,2000);
+  </script>
+</body>
+</html>

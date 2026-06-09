@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chiptune Tracker — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .ct-sequencer{background:rgba(0,0,0,.3);border-radius:8px;padding:10px;margin-bottom:10px;}
+    .ct-track{display:flex;gap:4px;margin-bottom:4px;align-items:center;}
+    .ct-track-label{width:60px;font-size:11px;opacity:.6;}
+    .ct-step{width:28px;height:28px;border-radius:4px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;transition:all .15s;border:1px solid transparent;}
+    .ct-step:hover{background:rgba(255,255,255,.15);}
+    .ct-step.active{background:rgba(0,255,136,.3);border-color:#00ff88;}
+    .ct-step.playing{background:#00ff88;color:#000;font-weight:600;}
+    .ct-controls{display:flex;gap:8px;justify-content:center;margin:10px 0;}
+    .ct-bpm{display:flex;align-items:center;gap:8px;font-size:12px;}
+    .ct-piano{display:flex;justify-content:center;gap:2px;margin-top:10px;}
+    .ct-key{width:30px;height:80px;background:rgba(255,255,255,.1);border-radius:4px;cursor:pointer;transition:all .1s;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;font-size:10px;}
+    .ct-key:hover{background:rgba(255,255,255,.2);}
+    .ct-key:active,.ct-key.active{background:#00ff88;color:#000;transform:translateY(2px);}
+    .ct-key.black{width:20px;height:50px;background:#333;margin:0 -11px;z-index:1;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:600px;height:480px;">
+    <div class="titlebar"><div class="title">🎹 Chiptune Tracker</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="ct-controls">
+        <button class="btn" onclick="togglePlay()" id="ctPlay">▶ Play</button>
+        <button class="btn" onclick="stopPlay()">⏹ Stop</button>
+        <button class="btn" onclick="clearSeq()">🗑 Clear</button>
+        <div class="ct-bpm"><span>BPM:</span><input type="range" class="input" id="ctBpm" min="60" max="240" value="120" style="width:80px;"><span id="bpmVal">120</span></div>
+      </div>
+      <div class="ct-sequencer" id="ctSeq"></div>
+      <div class="ct-piano" id="ctPiano"></div>
+    </div>
+  </div>
+  <script>
+    const AudioContext=window.AudioContext||window.webkitAudioContext;const ctx=new AudioContext();
+    const notes=[261.63,293.66,329.63,349.23,392.00,440.00,493.88,523.25];
+    const noteNames=['C','D','E','F','G','A','B','C'];
+    let sequence=Array(4).fill(null).map(()=>Array(16).fill(null));
+    let playing=false,currentStep=0,interval;
+    function initSeq(){const s=document.getElementById('ctSeq');s.innerHTML='';for(let t=0;t<4;t++){const row=document.createElement('div');row.className='ct-track';row.innerHTML='<div class="ct-track-label">Track '+(t+1)+'</div>';for(let i=0;i<16;i++){const step=document.createElement('div');step.className='ct-step';step.dataset.track=t;step.dataset.step=i;step.textContent=i+1;step.onclick=()=>toggleStep(t,i);row.appendChild(step);}s.appendChild(row);}}
+    function toggleStep(t,i){if(sequence[t][i]===null){sequence[t][i]=Math.floor(Math.random()*notes.length);}else{sequence[t][i]=null;}renderSeq();}
+    function renderSeq(){document.querySelectorAll('.ct-step').forEach(s=>{const t=parseInt(s.dataset.track),i=parseInt(s.dataset.step);s.classList.toggle('active',sequence[t][i]!==null);s.textContent=sequence[t][i]!==null?noteNames[sequence[t][i]]:i+1;});}
+    function playStep(){document.querySelectorAll('.ct-step').forEach(s=>s.classList.remove('playing'));for(let t=0;t<4;t++){const n=sequence[t][currentStep];if(n!==null){playNote(notes[n],.1);document.querySelector('.ct-step[data-track="'+t+'"][data-step="'+currentStep+'"]').classList.add('playing');}}currentStep=(currentStep+1)%16;}
+    function playNote(f,d){const o=ctx.createOscillator();const g=ctx.createGain();o.type='square';o.frequency.setValueAtTime(f,ctx.currentTime);g.gain.setValueAtTime(.15,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.01,ctx.currentTime+d);o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+d);}
+    function togglePlay(){if(playing){stopPlay();}else{playing=true;document.getElementById('ctPlay').textContent='⏸ Pause';const bpm=parseInt(document.getElementById('ctBpm').value);interval=setInterval(playStep,60000/bpm/4);}}
+    function stopPlay(){playing=false;clearInterval(interval);document.getElementById('ctPlay').textContent='▶ Play';currentStep=0;document.querySelectorAll('.ct-step').forEach(s=>s.classList.remove('playing'));}
+    function clearSeq(){sequence=Array(4).fill(null).map(()=>Array(16).fill(null));renderSeq();}
+    function initPiano(){const p=document.getElementById('ctPiano');notes.forEach((f,i)=>{const key=document.createElement('div');key.className='ct-key';key.textContent=noteNames[i];key.onclick=()=>{playNote(f,.2);key.classList.add('active');setTimeout(()=>key.classList.remove('active'),150);};p.appendChild(key);});}
+    document.getElementById('ctBpm').addEventListener('input',e=>{document.getElementById('bpmVal').textContent=e.target.value;if(playing){clearInterval(interval);const bpm=parseInt(e.target.value);interval=setInterval(playStep,60000/bpm/4);}});
+    initSeq();initPiano();
+  </script>
+</body>
+</html>

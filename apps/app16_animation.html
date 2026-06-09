@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Animation Timeline — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .anim-stage{display:flex;justify-content:center;align-items:center;height:200px;background:rgba(0,0,0,.2);border-radius:8px;margin-bottom:10px;position:relative;overflow:hidden;}
+    .anim-obj{width:40px;height:40px;background:#00ff88;border-radius:8px;position:absolute;}
+    .anim-timeline{height:60px;background:rgba(0,0,0,.3);border-radius:8px;padding:8px;display:flex;gap:4px;align-items:center;overflow-x:auto;}
+    .anim-frame{min-width:40px;height:40px;background:rgba(255,255,255,.1);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s;border:2px solid transparent;}
+    .anim-frame:hover,.anim-frame.active{border-color:#00ff88;background:rgba(0,255,136,.15);}
+    .anim-controls{display:flex;gap:8px;justify-content:center;margin:10px 0;}
+    .anim-props{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+    .anim-prop{padding:8px;background:rgba(255,255,255,.05);border-radius:6px;}
+    .anim-prop-label{font-size:10px;opacity:.5;margin-bottom:4px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:520px;height:480px;">
+    <div class="titlebar"><div class="title">🎬 Animation Timeline</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="anim-stage" id="animStage"><div class="anim-obj" id="animObj"></div></div>
+      <div class="anim-controls">
+        <button class="btn" onclick="goToFrame(0)">⏮</button>
+        <button class="btn" onclick="prevFrame()">◀</button>
+        <button class="btn" onclick="togglePlay()" id="animPlay">▶</button>
+        <button class="btn" onclick="nextFrame()">▶</button>
+        <button class="btn" onclick="addFrame()">+ Frame</button>
+        <button class="btn" onclick="delFrame()">🗑</button>
+      </div>
+      <div class="anim-timeline" id="animTimeline"></div>
+      <div class="anim-props">
+        <div class="anim-prop"><div class="anim-prop-label">X Position</div><input type="range" class="input" id="propX" min="0" max="440" value="220" oninput="updateProp()"></div>
+        <div class="anim-prop"><div class="anim-prop-label">Y Position</div><input type="range" class="input" id="propY" min="0" max="160" value="80" oninput="updateProp()"></div>
+        <div class="anim-prop"><div class="anim-prop-label">Rotation</div><input type="range" class="input" id="propRot" min="0" max="360" value="0" oninput="updateProp()"></div>
+        <div class="anim-prop"><div class="anim-prop-label">Scale</div><input type="range" class="input" id="propScale" min="50" max="200" value="100" oninput="updateProp()"></div>
+        <div class="anim-prop"><div class="anim-prop-label">Opacity</div><input type="range" class="input" id="propOp" min="0" max="100" value="100" oninput="updateProp()"></div>
+        <div class="anim-prop"><div class="anim-prop-label">Color</div><input type="color" class="input" id="propColor" value="#00ff88" oninput="updateProp()" style="width:100%;height:30px;padding:0;border:none;"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    let frames=[{x:220,y:80,rot:0,scale:1,op:1,color:'#00ff88'},{x:300,y:40,rot:45,scale:1.2,op:1,color:'#00ccff'},{x:100,y:120,rot:90,scale:.8,op:.7,color:'#ff0055'},{x:220,y:80,rot:180,scale:1,op:1,color:'#ffcc00'}];
+    let currentFrame=0,playing=false,playInterval;
+    function renderTimeline(){const t=document.getElementById('animTimeline');t.innerHTML='';frames.forEach((f,i)=>{const el=document.createElement('div');el.className='anim-frame'+(i===currentFrame?' active':'');el.textContent=i+1;el.onclick=()=>{currentFrame=i;render();};t.appendChild(el);});}
+    function render(){const f=frames[currentFrame];const o=document.getElementById('animObj');o.style.left=f.x+'px';o.style.top=f.y+'px';o.style.transform='rotate('+f.rot+'deg) scale('+f.scale+')';o.style.opacity=f.op;o.style.background=f.color;document.getElementById('propX').value=f.x;document.getElementById('propY').value=f.y;document.getElementById('propRot').value=f.rot;document.getElementById('propScale').value=f.scale*100;document.getElementById('propOp').value=f.op*100;document.getElementById('propColor').value=f.color;renderTimeline();}
+    function updateProp(){const f=frames[currentFrame];f.x=parseInt(document.getElementById('propX').value);f.y=parseInt(document.getElementById('propY').value);f.rot=parseInt(document.getElementById('propRot').value);f.scale=parseInt(document.getElementById('propScale').value)/100;f.op=parseInt(document.getElementById('propOp').value)/100;f.color=document.getElementById('propColor').value;render();}
+    function nextFrame(){currentFrame=(currentFrame+1)%frames.length;render();}
+    function prevFrame(){currentFrame=(currentFrame-1+frames.length)%frames.length;render();}
+    function goToFrame(n){currentFrame=n;render();}
+    function togglePlay(){playing=!playing;document.getElementById('animPlay').textContent=playing?'⏸':'▶';if(playing){playInterval=setInterval(nextFrame,500);}else{clearInterval(playInterval);}}
+    function addFrame(){frames.splice(currentFrame+1,0,{...frames[currentFrame]});currentFrame++;render();}
+    function delFrame(){if(frames.length>1){frames.splice(currentFrame,1);currentFrame=Math.min(currentFrame,frames.length-1);render();}}
+    render();
+  </script>
+</body>
+</html>

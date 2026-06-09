@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tetris — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    #tetris-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);}
+    .tetris-info{display:flex;justify-content:space-around;padding:10px;font-size:14px;}
+    .tetris-next{padding:10px;text-align:center;}
+    #nextCanvas{width:80px;height:80px;background:#0a0a0f;border-radius:6px;margin:5px auto;}
+    .tetris-controls{text-align:center;margin:10px;font-size:12px;opacity:.7;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:340px;height:520px;">
+    <div class="titlebar"><div class="title">🧩 Tetris</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="tetris-info">
+        <div>Score: <span id="tetrisScore">0</span></div>
+        <div>Level: <span id="tetrisLevel">1</span></div>
+        <div class="tetris-next">Next:<br><canvas id="nextCanvas" width="80" height="80"></canvas></div>
+      </div>
+      <canvas id="tetris-canvas" width="200" height="400"></canvas>
+      <div class="tetris-controls">← → Move • ↑ Rotate • ↓ Soft Drop • Space Hard Drop</div>
+      <div style="text-align:center;"><button class="btn" onclick="initTetris()">New Game</button></div>
+    </div>
+  </div>
+  <script>
+    const canvas=document.getElementById('tetris-canvas'),ctx=canvas.getContext('2d');
+    const nextCanvas=document.getElementById('nextCanvas'),nextCtx=nextCanvas.getContext('2d');
+    const COLS=10,ROWS=20,BLOCK=20;
+    const SHAPES=[[[1,1,1,1]],[[1,1],[1,1]],[[1,1,1],[0,1,0]],[[1,1,1],[1,0,0]],[[1,1,1],[0,0,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]];
+    const COLORS=['#00ff88','#00ccff','#ff0055','#ffcc00','#cc00ff','#ff6600','#00ffcc'];
+    let board=[],currentPiece,nextPiece,score=0,level=1,gameOver=false,dropInterval;
+    function initTetris(){
+      board=Array(ROWS).fill(null).map(()=>Array(COLS).fill(0));
+      score=0;level=1;gameOver=false;document.getElementById('tetrisScore').textContent='0';document.getElementById('tetrisLevel').textContent='1';
+      currentPiece=randomPiece();nextPiece=randomPiece();drawNext();
+      if(dropInterval)clearInterval(dropInterval);dropInterval=setInterval(drop,1000);
+      draw();
+    }
+    function randomPiece(){const i=Math.floor(Math.random()*SHAPES.length);return{shape:SHAPES[i],color:COLORS[i],x:3,y:0};}
+    function draw(){ctx.fillStyle='#0a0a0f';ctx.fillRect(0,0,200,400);board.forEach((row,y)=>row.forEach((cell,x)=>{if(cell){ctx.fillStyle=cell;ctx.fillRect(x*BLOCK,y*BLOCK,BLOCK-1,BLOCK-1);}}));currentPiece.shape.forEach((row,dy)=>row.forEach((cell,dx)=>{if(cell){ctx.fillStyle=currentPiece.color;ctx.fillRect((currentPiece.x+dx)*BLOCK,(currentPiece.y+dy)*BLOCK,BLOCK-1,BLOCK-1);}}));}
+    function drawNext(){nextCtx.fillStyle='#0a0a0f';nextCtx.fillRect(0,0,80,80);nextPiece.shape.forEach((row,y)=>row.forEach((cell,x)=>{if(cell){nextCtx.fillStyle=nextPiece.color;nextCtx.fillRect(x*20+10,y*20+10,19,19);}}));}
+    function drop(){currentPiece.y++;if(collision()){currentPiece.y--;merge();clearLines();currentPiece=nextPiece;nextPiece=randomPiece();drawNext();if(collision()){gameOver=true;clearInterval(dropInterval);alert('Game Over! Score: '+score);}}draw();}
+    function collision(){return currentPiece.shape.some((row,dy)=>row.some((cell,dx)=>cell&&(currentPiece.y+dy>=ROWS||currentPiece.x+dx<0||currentPiece.x+dx>=COLS||board[currentPiece.y+dy]?.[currentPiece.x+dx])));}
+    function merge(){currentPiece.shape.forEach((row,dy)=>row.forEach((cell,dx)=>{if(cell)board[currentPiece.y+dy][currentPiece.x+dx]=currentPiece.color;}));}
+    function clearLines(){let lines=0;for(let y=ROWS-1;y>=0;y--){if(board[y].every(cell=>cell)){board.splice(y,1);board.unshift(Array(COLS).fill(0));lines++;y++;}}if(lines){score+=lines*100*level;level=Math.floor(score/1000)+1;document.getElementById('tetrisScore').textContent=score;document.getElementById('tetrisLevel').textContent=level;clearInterval(dropInterval);dropInterval=setInterval(drop,Math.max(100,1000-level*100));}}
+    function rotate(){const rotated=currentPiece.shape[0].map((_,i)=>currentPiece.shape.map(row=>row[i]).reverse());const oldShape=currentPiece.shape;currentPiece.shape=rotated;if(collision())currentPiece.shape=oldShape;draw();}
+    document.addEventListener('keydown',e=>{if(gameOver)return;if(e.key==='ArrowLeft'){currentPiece.x--;if(collision())currentPiece.x++;draw();}else if(e.key==='ArrowRight'){currentPiece.x++;if(collision())currentPiece.x--;draw();}else if(e.key==='ArrowDown')drop();else if(e.key==='ArrowUp')rotate();else if(e.key===' '){while(!collision())currentPiece.y++;currentPiece.y--;merge();clearLines();currentPiece=nextPiece;nextPiece=randomPiece();drawNext();draw();}});
+    initTetris();
+  </script>
+</body>
+</html>

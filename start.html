@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpectraOS — Start Menu</title>
+  <meta name="description" content="Launch SpectraOS - A web-based Linux-style desktop environment">
+  <style>
+    :root {
+      --accent: #00ff88;
+      --accent2: #00ccff;
+      --bg: #0a0a0f;
+      --glass: rgba(20, 20, 35, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 50%, #0a1a2e 100%);
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 80%, rgba(0,255,136,0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(0,204,255,0.08) 0%, transparent 50%);
+      animation: pulse 8s ease-in-out infinite;
+    }
+
+    body::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 0.8; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.3), 0 0 40px rgba(0, 204, 255, 0.2); }
+      50% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.5), 0 0 60px rgba(0, 204, 255, 0.3); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .logo {
+      font-size: 72px;
+      font-weight: 700;
+      letter-spacing: 8px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .tagline {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 40px;
+      letter-spacing: 2px;
+    }
+
+    .launch-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 48px;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      color: #0a0a0f;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: glow 2s ease-in-out infinite;
+    }
+
+    .launch-btn:hover,
+    .launch-btn:focus-visible {
+      transform: scale(1.05);
+      box-shadow: 0 0 40px rgba(0, 255, 136, 0.6), 0 0 80px rgba(0, 204, 255, 0.4);
+      outline: none;
+    }
+
+    .launch-btn:focus-visible {
+      outline: 3px solid rgba(255, 255, 255, 0.5);
+      outline-offset: 4px;
+    }
+
+    .launch-btn:active {
+      transform: scale(0.98);
+    }
+
+    .features {
+      margin-top: 60px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+      max-width: 800px;
+    }
+
+    .feature {
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      transition: transform 0.3s;
+    }
+
+    .feature:hover {
+      transform: translateY(-5px);
+    }
+
+    .feature-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+    }
+
+    .feature-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+
+    .feature-desc {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.6;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 20px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="logo">◉ SPECTRAOS</h1>
+    <p class="tagline">Web-Based Desktop Environment</p>
+    
+    <a href="index.html" class="launch-btn" aria-label="Launch SpectraOS">
+      <span>🚀</span>
+      <span>LAUNCH OS</span>
+    </a>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">💻</div>
+        <div class="feature-title">Development Tools</div>
+        <div class="feature-desc">Code editor, terminal, git client, and more</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎨</div>
+        <div class="feature-title">Creative Apps</div>
+        <div class="feature-desc">Pixel art, animation, music studio</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎮</div>
+        <div class="feature-title">Games</div>
+        <div class="feature-desc">Classic arcade games and puzzles</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⚙️</div>
+        <div class="feature-title">Utilities</div>
+        <div class="feature-desc">Files, settings, notes, calculator</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Press the button above to launch SpectraOS
+  </div>
+</body>
+</html>

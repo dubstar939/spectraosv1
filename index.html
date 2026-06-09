@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpectraOS — Web Desktop Environment</title>
+  <meta name="description" content="A web-based Linux-style desktop environment built with vanilla JavaScript">
+  <link rel="stylesheet" href="apps/spectra.css">
+  <style>
+    /* ===== SPECTRAOS DESKTOP ENVIRONMENT ===== */
+    :root {
+      --accent: #00ff88;
+      --accent2: #00ccff;
+      --bg: #0a0a0f;
+      --glass: rgba(20, 20, 35, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --focus-ring: rgba(0, 255, 136, 0.6);
+      --text-primary: #ffffff;
+      --text-secondary: #b0b0b0;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+      line-height: 1.5;
+    }
+
+    /* Respect user motion preferences */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* Focus styles for keyboard navigation */
+    *:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    
+    /* Enhanced focus for interactive elements */
+    button:focus-visible, 
+    [role="button"]:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px var(--focus-ring);
+    }
+
+    /* Skip link for screen readers */
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 0;
+      background: var(--accent);
+      color: #000;
+      padding: 8px 16px;
+      z-index: 100000;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .skip-link:focus {
+      top: 0;
+    }
+
+    /* Visually hidden but accessible to screen readers */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Animated Wallpaper Background */
+    #desktop-bg {
+      position: fixed; inset: 0; z-index: 0;
+      background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 50%, #0a1a2e 100%);
+    }
+    #desktop-bg::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at 20% 80%, rgba(0,255,136,0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(0,204,255,0.08) 0%, transparent 50%);
+    }
+    #desktop-bg::after {
+      content: ''; position: absolute; inset: 0;
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+
+    /* ===== TOP BAR ===== */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 36px;
+      background: var(--glass);
+      backdrop-filter: blur(20px) saturate(1.5);
+      -webkit-backdrop-filter: blur(20px) saturate(1.5);
+      border-bottom: 1px solid var(--glass-border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 15px; z-index: 10000;
+    }
+    #topbar-left { display: flex; align-items: center; gap: 12px; }
+    #topbar-right { display: flex; align-items: center; gap: 10px; }
+
+    .topbar-logo {
+      font-weight: 700; font-size: 14px; letter-spacing: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .topbar-item {
+      padding: 4px 10px; border-radius: 6px; font-size: 12px;
+      cursor: pointer; transition: all 0.2s; opacity: 0.8;
+    }
+    .topbar-item:hover { background: rgba(255,255,255,0.1); opacity: 1; }
+
+    .topbar-time { font-family: monospace; font-size: 13px; letter-spacing: 1px; }
+
+    /* ===== APP LAUNCHER ===== */
+    #launcher {
+      position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%) translateY(120%);
+      width: 700px; max-width: 90vw; max-height: 500px;
+      background: var(--glass);
+      backdrop-filter: blur(30px) saturate(1.5);
+      -webkit-backdrop-filter: blur(30px) saturate(1.5);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 20px;
+      z-index: 9999;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow-y: auto;
+    }
+    #launcher.open { transform: translateX(-50%) translateY(0); }
+
+    .launcher-search {
+      width: 100%; padding: 10px 15px; border-radius: 10px;
+      border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3);
+      color: var(--text-primary); font-size: 14px; margin-bottom: 15px;
+    }
+    .launcher-search::placeholder { color: rgba(255,255,255,0.4); }
+    .launcher-search:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--focus-ring);
+    }
+
+    .launcher-grid {
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;
+    }
+    .launcher-app {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 8px; border-radius: 12px; cursor: pointer;
+      transition: all 0.2s; border: 1px solid transparent;
+      background: none;
+      color: inherit;
+      font: inherit;
+    }
+    .launcher-app:hover, .launcher-app:focus-visible {
+      background: rgba(255,255,255,0.1); border-color: var(--glass-border);
+      transform: translateY(-2px);
+    }
+    .launcher-app[aria-selected="true"] {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--focus-ring);
+      background: rgba(0, 255, 136, 0.1);
+    }
+    .launcher-app-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 6px;
+    }
+    .launcher-app-name { font-size: 11px; text-align: center; opacity: 0.9; }
+
+    /* ===== BOTTOM DOCK ===== */
+    #dock {
+      position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; padding: 8px 16px;
+      background: var(--glass);
+      backdrop-filter: blur(20px) saturate(1.5);
+      -webkit-backdrop-filter: blur(20px) saturate(1.5);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px; z-index: 9998;
+    }
+    .dock-item {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; cursor: pointer; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative; border: 1px solid transparent;
+    }
+    .dock-item:hover, .dock-item:focus-visible {
+      transform: translateY(-8px) scale(1.15);
+      background: rgba(255,255,255,0.15);
+      border-color: var(--glass-border);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+    .dock-item:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+    .dock-item.active::after {
+      content: ''; position: absolute; bottom: -6px; width: 4px; height: 4px;
+      background: var(--accent); border-radius: 50%;
+    }
+
+    /* ===== WINDOW MANAGER ===== */
+    #wm-container { position: fixed; inset: 36px 0 70px 0; z-index: 100; pointer-events: none; }
+    .wm-window {
+      position: absolute; pointer-events: auto;
+      background: var(--glass);
+      backdrop-filter: blur(20px) saturate(1.5);
+      -webkit-backdrop-filter: blur(20px) saturate(1.5);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+      overflow: hidden;
+      transition: box-shadow 0.3s, transform 0.3s, opacity 0.2s;
+      min-width: 200px; min-height: 150px;
+    }
+    .wm-window.focused {
+      box-shadow: 0 25px 70px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,255,136,0.3);
+      z-index: 1000 !important;
+    }
+    .wm-window:not(.focused) {
+      filter: brightness(0.85);
+    }
+    .wm-window.minimized { transform: scale(0.1) translateY(500px); opacity: 0; pointer-events: none; }
+    .wm-window.maximized { top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0; }
+
+    .wm-titlebar {
+      height: 36px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 12px; background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid var(--glass-border); cursor: grab;
+    }
+    .wm-titlebar:active { cursor: grabbing; }
+    .wm-title { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+    .wm-controls { display: flex; gap: 6px; }
+    .wm-btn {
+      width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer;
+      transition: all 0.2s;
+      background: transparent;
+      padding: 0;
+    }
+    .wm-btn:hover, .wm-btn:focus-visible { 
+      transform: scale(1.2); 
+      outline: 2px solid var(--focus-ring); 
+      outline-offset: 2px;
+    }
+    .wm-btn.min { background: #ffbd2e; }
+    .wm-btn.max { background: #28c840; }
+    .wm-btn.close { background: #ff5f57; }
+
+    .wm-content { height: calc(100% - 36px); overflow: auto; }
+    .wm-content iframe { width: 100%; height: 100%; border: none; }
+
+    .wm-resize {
+      position: absolute; right: 0; bottom: 0; width: 16px; height: 16px;
+      cursor: se-resize; z-index: 10;
+    }
+
+    /* ===== DESKTOP ICONS ===== */
+    #desktop-icons {
+      position: fixed; top: 50px; left: 15px;
+      display: flex; flex-direction: column; gap: 8px; z-index: 50;
+    }
+    .desk-icon {
+      display: flex; flex-direction: column; align-items: center;
+      width: 72px; padding: 8px 4px; border-radius: 10px;
+      cursor: pointer; transition: all 0.2s; border: 1px solid transparent;
+      background: none; color: var(--text-primary);
+    }
+    .desk-icon:hover, .desk-icon:focus-visible { 
+      background: rgba(255,255,255,0.08); 
+      border-color: var(--glass-border);
+    }
+    .desk-icon:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+    .desk-icon-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: rgba(255,255,255,0.1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 4px;
+    }
+    .desk-icon-name { font-size: 10px; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.8); opacity: 0.95; }
+
+    /* ===== CONTEXT MENU ===== */
+    #ctx-menu {
+      position: fixed; background: var(--glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px; padding: 6px 0;
+      z-index: 10001; display: none; min-width: 160px;
+    }
+    .ctx-item {
+      width: 100%;
+      padding: 8px 16px; font-size: 13px; cursor: pointer;
+      transition: all 0.15s; display: flex; align-items: center; gap: 8px;
+      background: none; border: none; color: var(--text-primary);
+      text-align: left;
+    }
+    .ctx-item:hover, .ctx-item:focus-visible { 
+      background: rgba(255,255,255,0.1); 
+      outline: none;
+    }
+    .ctx-item:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--focus-ring);
+    }
+    .ctx-sep { height: 1px; background: var(--glass-border); margin: 4px 0; }
+
+    /* ===== NOTIFICATIONS ===== */
+    #notif-area {
+      position: fixed; top: 45px; right: 15px;
+      display: flex; flex-direction: column; gap: 8px; z-index: 10002;
+      max-width: 320px;
+    }
+    .notif-toast {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px; padding: 12px 16px;
+      animation: notifIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      border-left: 3px solid var(--accent);
+    }
+    @keyframes notifIn {
+      from { transform: translateX(100px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .notif-toast-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .notif-toast-body { font-size: 12px; opacity: 0.9; }
+    
+    /* Notification toast focus for keyboard users */
+    .notif-toast:focus-within {
+      box-shadow: 0 0 0 2px var(--focus-ring);
+    }
+
+    /* ===== OVERLAYS ===== */
+    #overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+      z-index: 9990; display: none; opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #overlay.show { display: block; opacity: 1; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+  </style>
+</head>
+<body>
+  <!-- Skip Link for Keyboard Users -->
+  <a href="#launcher" class="skip-link">Skip to App Launcher</a>
+  
+  <!-- Desktop Background -->
+  <div id="desktop-bg" role="presentation" aria-hidden="true"></div>
+
+  <!-- Top Bar -->
+  <header id="topbar" role="banner" aria-label="Top navigation bar">
+    <div id="topbar-left">
+      <span class="topbar-logo" aria-label="SpectraOS logo">◉ SPECTRA</span>
+      <button class="topbar-item" onclick="toggleLauncher()" aria-label="Open app launcher">🚀 Apps</button>
+      <button class="topbar-item" onclick="openApp('app39_notes.html')" aria-label="Open Notes app">📝 Notes</button>
+      <button class="topbar-item" onclick="openApp('app37_calculator.html')" aria-label="Open Calculator app">🧮 Calc</button>
+    </div>
+    <div id="topbar-right">
+      <button class="topbar-item" id="notifBell" onclick="openApp('app46_notifications.html')" aria-label="Notifications" aria-live="polite">🔔</button>
+      <button class="topbar-item" onclick="openApp('app45_settings.html')" aria-label="Open Settings">⚙️</button>
+      <button class="topbar-item" onclick="openApp('app49_taskmanager.html')" aria-label="Open Task Manager">📊</button>
+      <time class="topbar-time" id="clock" datetime="" aria-label="Current time">00:00</time>
+    </div>
+  </header>
+
+  <!-- App Launcher -->
+  <div id="launcher" role="dialog" aria-label="App Launcher" aria-modal="true" aria-hidden="true">
+    <label for="launcherSearch" class="sr-only">Search apps</label>
+    <input type="text" class="launcher-search" id="launcherSearch" placeholder="Search apps..." oninput="filterApps()" aria-describedby="launcherResultsCount">
+    <div class="launcher-grid" id="launcherGrid" role="grid" aria-label="Available applications"></div>
+    <span id="launcherResultsCount" class="sr-only" aria-live="polite"></span>
+  </div>
+  <div id="overlay" onclick="toggleLauncher()" aria-hidden="true"></div>
+
+  <!-- Desktop Icons -->
+  <nav id="desktop-icons" aria-label="Desktop shortcuts">
+    <button class="desk-icon" onclick="openApp('app39_notes.html')" aria-label="Open Notes">
+      <div class="desk-icon-icon" aria-hidden="true">📝</div>
+      <div class="desk-icon-name">Notes</div>
+    </button>
+    <button class="desk-icon" onclick="openApp('app37_calculator.html')" aria-label="Open Calculator">
+      <div class="desk-icon-icon" aria-hidden="true">🧮</div>
+      <div class="desk-icon-name">Calc</div>
+    </button>
+    <button class="desk-icon" onclick="openApp('app38_calendar.html')" aria-label="Open Calendar">
+      <div class="desk-icon-icon" aria-hidden="true">📅</div>
+      <div class="desk-icon-name">Calendar</div>
+    </button>
+    <button class="desk-icon" onclick="openApp('app40_weather.html')" aria-label="Open Weather">
+      <div class="desk-icon-icon" aria-hidden="true">🌤</div>
+      <div class="desk-icon-name">Weather</div>
+    </button>
+    <button class="desk-icon" onclick="openApp('app32_spectraarcade.html')" aria-label="Open Arcade">
+      <div class="desk-icon-icon" aria-hidden="true">🎮</div>
+      <div class="desk-icon-name">Arcade</div>
+    </button>
+    <button class="desk-icon" onclick="openApp('app50_browser.html')" aria-label="Open Browser">
+      <div class="desk-icon-icon" aria-hidden="true">🌐</div>
+      <div class="desk-icon-name">Browser</div>
+    </button>
+  </nav>
+
+  <!-- Window Manager Container -->
+  <main id="wm-container" role="application" aria-label="Window manager - Open applications"></main>
+
+  <!-- Bottom Dock -->
+  <nav id="dock" role="navigation" aria-label="Application dock">
+    <button class="dock-item" onclick="toggleLauncher()" title="App Launcher" aria-label="Open App Launcher">🚀</button>
+    <button class="dock-item" onclick="openApp('app01_codeeditor.html')" title="Code Editor" aria-label="Open Code Editor">💻</button>
+    <button class="dock-item" onclick="openApp('app02_terminal.html')" title="Terminal" aria-label="Open Terminal">🖥</button>
+    <button class="dock-item" onclick="openApp('app10_filemanager.html')" title="Files" aria-label="Open File Manager">📁</button>
+    <button class="dock-item" onclick="openApp('app11_systemmonitor.html')" title="System" aria-label="Open System Monitor">📊</button>
+    <button class="dock-item" onclick="openApp('app32_spectraarcade.html')" title="Games" aria-label="Open Games">🎮</button>
+    <button class="dock-item" onclick="openApp('app39_notes.html')" title="Notes" aria-label="Open Notes">📝</button>
+    <button class="dock-item" onclick="openApp('app41_musicplayer.html')" title="Music" aria-label="Open Music Player">🎵</button>
+    <button class="dock-item" onclick="openApp('app45_settings.html')" title="Settings" aria-label="Open Settings">⚙️</button>
+  </nav>
+
+  <!-- Context Menu -->
+  <div id="ctx-menu" role="menu" aria-label="Context menu">
+    <button class="ctx-item" role="menuitem" onclick="openApp('app39_notes.html');hideCtx()">📝 New Note</button>
+    <button class="ctx-item" role="menuitem" onclick="openApp('app10_filemanager.html');hideCtx()">📁 New Folder</button>
+    <div class="ctx-sep" role="separator"></div>
+    <button class="ctx-item" role="menuitem" onclick="openApp('app47_wallpaperdesigner.html');hideCtx()">🖼 Change Wallpaper</button>
+    <button class="ctx-item" role="menuitem" onclick="openApp('app45_settings.html');hideCtx()">⚙️ Settings</button>
+    <div class="ctx-sep" role="separator"></div>
+    <button class="ctx-item" role="menuitem" onclick="location.reload();hideCtx()">🔄 Refresh</button>
+  </div>
+
+  <!-- Notification Area -->
+  <div id="notif-area" role="log" aria-label="Notifications" aria-live="polite" aria-relevant="additions"></div>
+
+  <script>
+    // ===== APP REGISTRY =====
+    const apps = [
+      // Creative Tools
+      {id:'app01',file:'app01_codeeditor.html',name:'Code Editor',icon:'💻',cat:'Dev'},
+      {id:'app02',file:'app02_terminal.html',name:'Terminal',icon:'🖥',cat:'Dev'},
+      {id:'app03',file:'app03_gitclient.html',name:'Git Client',icon:'🌿',cat:'Dev'},
+      {id:'app04',file:'app04_apitester.html',name:'API Tester',icon:'🔌',cat:'Dev'},
+      {id:'app05',file:'app05_jsonformatter.html',name:'JSON Formatter',icon:'📋',cat:'Dev'},
+      {id:'app06',file:'app06_markdowneditor.html',name:'Markdown',icon:'📝',cat:'Dev'},
+      {id:'app07',file:'app07_regex tester.html',name:'Regex Tester',icon:'🔍',cat:'Dev'},
+      {id:'app08',file:'app08_packagemanager.html',name:'Packages',icon:'📦',cat:'Dev'},
+      {id:'app09',file:'app09_virtualfs.html',name:'Virtual FS',icon:'💾',cat:'Dev'},
+      {id:'app10',file:'app10_filemanager.html',name:'Files',icon:'📁',cat:'Dev'},
+      {id:'app11',file:'app11_systemmonitor.html',name:'System',icon:'📊',cat:'Dev'},
+      // Creative
+      {id:'app12',file:'app12_pixelart.html',name:'Pixel Art',icon:'🎨',cat:'Creative'},
+      {id:'app13',file:'app13_vectordraw.html',name:'Vector',icon:'✏️',cat:'Creative'},
+      {id:'app14',file:'app14_ministudio.html',name:'Studio',icon:'🖌',cat:'Creative'},
+      {id:'app15',file:'app15_spritesheet.html',name:'Sprites',icon:'👾',cat:'Creative'},
+      {id:'app16',file:'app16_animation.html',name:'Animate',icon:'🎬',cat:'Creative'},
+      {id:'app17',file:'app17_soundboard.html',name:'Soundboard',icon:'🔊',cat:'Creative'},
+      {id:'app18',file:'app18_chiptune.html',name:'Chiptune',icon:'🎹',cat:'Creative'},
+      {id:'app19',file:'app19_palette.html',name:'Palette',icon:'🎨',cat:'Creative'},
+      {id:'app20',file:'app20_wallpaper.html',name:'Wallpaper',icon:'🖼',cat:'Creative'},
+      {id:'app21',file:'app21_logoplay.html',name:'Logo',icon:'🔤',cat:'Creative'},
+      // Games
+      {id:'app22',file:'app22_pong.html',name:'Pong',icon:'🏓',cat:'Game'},
+      {id:'app23',file:'app23_breakout.html',name:'Breakout',icon:'🧱',cat:'Game'},
+      {id:'app24',file:'app24_tetris.html',name:'Tetris',icon:'🧩',cat:'Game'},
+      {id:'app25',file:'app25_snake.html',name:'Snake',icon:'🐍',cat:'Game'},
+      {id:'app26',file:'app26_match3.html',name:'Match-3',icon:'💎',cat:'Game'},
+      {id:'app27',file:'app27_minesweeper.html',name:'Mines',icon:'💣',cat:'Game'},
+      {id:'app28',file:'app28_platformer.html',name:'Platformer',icon:'🏃',cat:'Game'},
+      {id:'app29',file:'app29_sliding.html',name:'Sliding',icon:'🧮',cat:'Game'},
+      {id:'app30',file:'app30_particles.html',name:'Particles',icon:'✨',cat:'Game'},
+      {id:'app31',file:'app31_physics.html',name:'Physics',icon:'🔮',cat:'Game'},
+      {id:'app32',file:'app32_arcade.html',name:'Arcade',icon:'🎮',cat:'Game'},
+      // Utilities
+      {id:'app33',file:'app33_calculator.html',name:'Calc',icon:'🧮',cat:'Util'},
+      {id:'app34',file:'app34_calendar.html',name:'Calendar',icon:'📅',cat:'Util'},
+      {id:'app35',file:'app35_notes.html',name:'Notes',icon:'📝',cat:'Util'},
+      {id:'app36',file:'app36_weather.html',name:'Weather',icon:'🌤',cat:'Util'},
+      {id:'app37',file:'app37_music.html',name:'Music',icon:'🎵',cat:'Util'},
+      {id:'app38',file:'app38_video.html',name:'Video',icon:'🎬',cat:'Util'},
+      {id:'app39',file:'app39_images.html',name:'Images',icon:'🖼',cat:'Util'},
+      {id:'app40',file:'app40_clipboard.html',name:'Clipboard',icon:'📋',cat:'Util'},
+      {id:'app41',file:'app41_settings.html',name:'Settings',icon:'⚙️',cat:'Util'},
+      {id:'app42',file:'app42_notifs.html',name:'Notifs',icon:'🔔',cat:'Util'},
+      {id:'app43',file:'app43_browser.html',name:'Browser',icon:'🌐',cat:'Util'},
+      {id:'app44',file:'app44_taskmgr.html',name:'Tasks',icon:'📊',cat:'Util'},
+    ];
+
+    // ===== WINDOW MANAGER WITH ACCESSIBILITY =====
+    let windows = {}, zIndex = 100, windowCount = 0;
+
+    function openApp(file, title, icon) {
+      const app = apps.find(a => a.file === file) || {name:title||'App',icon:icon||'📄'};
+      const id = 'win-' + Date.now() + '-' + (windowCount++);
+      const wm = document.getElementById('wm-container');
+
+      const w = document.createElement('div');
+      w.className = 'wm-window';
+      w.id = id;
+      w.style.left = (50 + windowCount * 30) + 'px';
+      w.style.top = (50 + windowCount * 20) + 'px';
+      w.style.width = '600px';
+      w.style.height = '400px';
+      w.style.zIndex = ++zIndex;
+      
+      // Accessibility attributes
+      w.setAttribute('role', 'dialog');
+      w.setAttribute('aria-label', `${app.name} window`);
+      w.setAttribute('aria-modal', 'false');
+      w.setAttribute('tabindex', '-1');
+
+      w.innerHTML = `
+        <div class="wm-titlebar" onmousedown="startDrag(event,'${id}')" role="toolbar" aria-label="${app.name} window controls">
+          <div class="wm-title">
+            <span aria-hidden="true">${app.icon}</span>
+            <span>${app.name}</span>
+          </div>
+          <div class="wm-controls" role="group" aria-label="Window actions">
+            <button class="wm-btn min" onclick="minWindow('${id}')" title="Minimize" aria-label="Minimize ${app.name} window">−</button>
+            <button class="wm-btn max" onclick="maxWindow('${id}')" title="Maximize" aria-label="Maximize ${app.name} window">□</button>
+            <button class="wm-btn close" onclick="closeWindow('${id}')" title="Close" aria-label="Close ${app.name} window">×</button>
+          </div>
+        </div>
+        <div class="wm-content" role="document" aria-label="${app.name} content">
+          <iframe src="apps/${file}" sandbox="allow-scripts allow-same-origin" title="${app.name} application"></iframe>
+        </div>
+        <div class="wm-resize" onmousedown="startResize(event,'${id}')" aria-label="Resize ${app.name} window"></div>
+      `;
+
+      w.addEventListener('mousedown', () => focusWindow(id));
+      w.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          minWindow(id);
+        }
+      });
+      wm.appendChild(w);
+      windows[id] = w;
+      focusWindow(id);
+
+      // Animation
+      w.style.transform = 'scale(0.9)';
+      w.style.opacity = '0';
+      requestAnimationFrame(() => {
+        w.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s';
+        w.style.transform = 'scale(1)';
+        w.style.opacity = '1';
+      });
+
+      showNotif('Opened', app.name + ' is now running', app.icon);
+      return id;
+    }
+
+    function closeWindow(id) {
+      const w = windows[id]; if (!w) return;
+      w.style.transition = 'transform 0.3s, opacity 0.3s';
+      w.style.transform = 'scale(0.9)';
+      w.style.opacity = '0';
+      setTimeout(() => { 
+        w.remove(); 
+        delete windows[id];
+        // Return focus to desktop or another window
+        const remainingIds = Object.keys(windows);
+        if (remainingIds.length > 0) {
+          focusWindow(remainingIds[remainingIds.length - 1]);
+        } else {
+          document.querySelector('.skip-link')?.focus();
+        }
+      }, 300);
+    }
+    function minWindow(id) {
+      const w = windows[id]; if (!w) return;
+      w.classList.toggle('minimized');
+      // Update aria-hidden state
+      w.setAttribute('aria-hidden', w.classList.contains('minimized'));
+      if (!w.classList.contains('minimized')) {
+        focusWindow(id);
+      }
+    }
+    function maxWindow(id) {
+      const w = windows[id]; if (!w) return;
+      w.classList.toggle('maximized');
+      const btn = w.querySelector('.wm-btn.max');
+      const isMaximized = w.classList.contains('maximized');
+      btn.setAttribute('aria-label', isMaximized ? 'Restore window' : 'Maximize window');
+      btn.textContent = isMaximized ? '❐' : '□';
+    }
+    function focusWindow(id) {
+      const w = windows[id]; if (!w) return;
+      Object.values(windows).forEach(x => {
+        x.classList.remove('focused');
+        x.setAttribute('aria-hidden', 'true');
+      });
+      w.classList.add('focused');
+      w.style.zIndex = ++zIndex;
+      w.setAttribute('aria-hidden', 'false');
+      w.focus();
+    }
+
+    // Drag with Touch Support
+    let dragId = null, dragOffX = 0, dragOffY = 0;
+    function startDrag(e, id) {
+      if (e.target.closest('.wm-controls')) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      dragId = id; 
+      dragOffX = clientX; 
+      dragOffY = clientY;
+      focusWindow(id);
+    }
+    
+    function handleDragMove(e) {
+      if (!dragId) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const w = windows[dragId]; 
+      if (!w || w.classList.contains('maximized')) return;
+      w.style.left = (w.offsetLeft + clientX - dragOffX) + 'px';
+      w.style.top = (w.offsetTop + clientY - dragOffY) + 'px';
+      dragOffX = clientX; 
+      dragOffY = clientY;
+    }
+    
+    function handleDragEnd() {
+      dragId = null;
+    }
+    
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('touchmove', handleDragMove, { passive: true });
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('touchend', handleDragEnd);
+
+    // Resize with Touch Support
+    let resizeId = null, resizeX = 0, resizeY = 0, startWidth = 0, startHeight = 0;
+    function startResize(e, id) {
+      resizeId = id; 
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      resizeX = clientX; 
+      resizeY = clientY;
+      const w = windows[resizeId];
+      if (w) {
+        startWidth = w.offsetWidth;
+        startHeight = w.offsetHeight;
+      }
+      e.preventDefault();
+    }
+    
+    function handleResizeMove(e) {
+      if (!resizeId) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const w = windows[resizeId]; 
+      if (!w) return;
+      
+      const dx = clientX - resizeX;
+      const dy = clientY - resizeY;
+      const minW = 320, minH = 200;
+      
+      w.style.width = Math.max(minW, startWidth + dx) + 'px';
+      w.style.height = Math.max(minH, startHeight + dy) + 'px';
+    }
+    
+    function handleResizeEnd() {
+      resizeId = null;
+    }
+    
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('touchmove', handleResizeMove, { passive: true });
+    document.addEventListener('mouseup', handleResizeEnd);
+    document.addEventListener('touchend', handleResizeEnd);
+
+    // ===== LAUNCHER WITH KEYBOARD NAVIGATION =====
+    let launcherKeyboardIndex = -1;
+    let filteredApps = [];
+    
+    function initLauncher() {
+      renderLauncherGrid(apps);
+      filteredApps = [...apps];
+    }
+    
+    function renderLauncherGrid(appList) {
+      const grid = document.getElementById('launcherGrid');
+      grid.innerHTML = appList.map((a, index) => `
+        <button class="launcher-app" 
+                role="gridcell"
+                tabindex="${index === 0 ? '0' : '-1'}"
+                data-app-id="${a.id}"
+                data-app-file="${a.file}"
+                aria-label="${a.name}"
+                onclick="launchAppFromLauncher('${a.file}')"
+                onkeydown="handleLauncherKeydown(event, ${index})">
+          <div class="launcher-app-icon" aria-hidden="true">${a.icon}</div>
+          <div class="launcher-app-name">${a.name}</div>
+        </button>
+      `).join('');
+      launcherKeyboardIndex = appList.length > 0 ? 0 : -1;
+      updateLauncherFocus();
+    }
+    
+    function launchAppFromLauncher(file) {
+      openApp(file);
+      toggleLauncher();
+    }
+    
+    function toggleLauncher() {
+      const launcher = document.getElementById('launcher');
+      const overlay = document.getElementById('overlay');
+      const isOpen = launcher.classList.toggle('open');
+      overlay.classList.toggle('show', isOpen);
+      launcher.setAttribute('aria-hidden', !isOpen);
+      
+      if (isOpen) {
+        // Reset keyboard navigation
+        launcherKeyboardIndex = 0;
+        setTimeout(() => {
+          const searchInput = document.getElementById('launcherSearch');
+          searchInput.focus();
+          updateLauncherFocus();
+        }, 100);
+      } else {
+        // Return focus to trigger element
+        document.querySelector('.topbar-item[aria-label="Open app launcher"]')?.focus();
+      }
+    }
+    
+    function handleLauncherKeydown(event, currentIndex) {
+      const gridItems = document.querySelectorAll('.launcher-app[style*="display: flex"], .launcher-app:not([style*="display: none"])');
+      const columns = 6; // Match CSS grid-template-columns
+      
+      switch (event.key) {
+        case 'ArrowRight':
+          event.preventDefault();
+          launcherKeyboardIndex = Math.min(launcherKeyboardIndex + 1, gridItems.length - 1);
+          updateLauncherFocus();
+          break;
+        case 'ArrowLeft':
+          event.preventDefault();
+          launcherKeyboardIndex = Math.max(launcherKeyboardIndex - 1, 0);
+          updateLauncherFocus();
+          break;
+        case 'ArrowDown':
+          event.preventDefault();
+          launcherKeyboardIndex = Math.min(launcherKeyboardIndex + columns, gridItems.length - 1);
+          updateLauncherFocus();
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          launcherKeyboardIndex = Math.max(launcherKeyboardIndex - columns, 0);
+          updateLauncherFocus();
+          break;
+        case 'Enter':
+        case ' ':
+          event.preventDefault();
+          if (gridItems[launcherKeyboardIndex]) {
+            gridItems[launcherKeyboardIndex].click();
+          }
+          break;
+        case 'Escape':
+          toggleLauncher();
+          break;
+        case 'Home':
+          event.preventDefault();
+          launcherKeyboardIndex = 0;
+          updateLauncherFocus();
+          break;
+        case 'End':
+          event.preventDefault();
+          launcherKeyboardIndex = gridItems.length - 1;
+          updateLauncherFocus();
+          break;
+      }
+    }
+    
+    function updateLauncherFocus() {
+      const gridItems = document.querySelectorAll('.launcher-app[style*="display: flex"], .launcher-app:not([style*="display: none"])');
+      gridItems.forEach((item, index) => {
+        item.setAttribute('tabindex', index === launcherKeyboardIndex ? '0' : '-1');
+        item.setAttribute('aria-selected', index === launcherKeyboardIndex ? 'true' : 'false');
+      });
+      
+      // Scroll into view if needed
+      if (gridItems[launcherKeyboardIndex]) {
+        gridItems[launcherKeyboardIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+    
+    function filterApps() {
+      const q = document.getElementById('launcherSearch').value.toLowerCase();
+      filteredApps = apps.filter(a => a.name.toLowerCase().includes(q) || a.cat.toLowerCase().includes(q));
+      
+      renderLauncherGrid(filteredApps);
+      
+      // Update screen reader count
+      const countText = filteredApps.length === 0 ? 'No apps found' : `${filteredApps.length} app${filteredApps.length !== 1 ? 's' : ''} found`;
+      document.getElementById('launcherResultsCount').textContent = countText;
+      
+      // Announce to screen readers
+      const announcement = document.createElement('div');
+      announcement.setAttribute('role', 'status');
+      announcement.setAttribute('aria-live', 'polite');
+      announcement.className = 'sr-only';
+      announcement.textContent = countText;
+      document.body.appendChild(announcement);
+      setTimeout(() => announcement.remove(), 1000);
+    }
+
+    // ===== CONTEXT MENU WITH KEYBOARD NAVIGATION =====
+    let ctxMenuOpen = false;
+    let ctxMenuIndex = -1;
+    
+    function showCtx(x, y) {
+      const m = document.getElementById('ctx-menu');
+      m.style.left = x + 'px';
+      m.style.top = y + 'px';
+      m.style.display = 'block';
+      ctxMenuOpen = true;
+      ctxMenuIndex = 0;
+      
+      // Focus first menu item for keyboard users
+      setTimeout(() => {
+        const items = m.querySelectorAll('.ctx-item');
+        items.forEach((item, idx) => {
+          item.setAttribute('tabindex', idx === 0 ? '0' : '-1');
+        });
+        if (items[0]) items[0].focus();
+      }, 10);
+    }
+    
+    function hideCtx() { 
+      const menu = document.getElementById('ctx-menu');
+      menu.style.display = 'none';
+      ctxMenuOpen = false;
+      ctxMenuIndex = -1;
+    }
+    
+    function handleCtxKeydown(e) {
+      if (!ctxMenuOpen) return;
+      
+      const menu = document.getElementById('ctx-menu');
+      const items = Array.from(menu.querySelectorAll('.ctx-item'));
+      
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          ctxMenuIndex = (ctxMenuIndex + 1) % items.length;
+          updateCtxFocus(items);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          ctxMenuIndex = (ctxMenuIndex - 1 + items.length) % items.length;
+          updateCtxFocus(items);
+          break;
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (items[ctxMenuIndex]) items[ctxMenuIndex].click();
+          break;
+        case 'Escape':
+          hideCtx();
+          break;
+        case 'Home':
+          e.preventDefault();
+          ctxMenuIndex = 0;
+          updateCtxFocus(items);
+          break;
+        case 'End':
+          e.preventDefault();
+          ctxMenuIndex = items.length - 1;
+          updateCtxFocus(items);
+          break;
+      }
+    }
+    
+    function updateCtxFocus(items) {
+      items.forEach((item, idx) => {
+        item.setAttribute('tabindex', idx === ctxMenuIndex ? '0' : '-1');
+        if (idx === ctxMenuIndex) item.focus();
+      });
+    }
+    
+    document.addEventListener('contextmenu', e => {
+      if (e.target.closest('.wm-window')) return;
+      e.preventDefault();
+      showCtx(e.clientX, e.clientY);
+    });
+    
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#ctx-menu')) {
+        hideCtx();
+      }
+    });
+    
+    // Keyboard support for context menu
+    document.addEventListener('keydown', (e) => {
+      if (ctxMenuOpen) {
+        handleCtxKeydown(e);
+      }
+    });
+
+    // ===== NOTIFICATIONS WITH ACCESSIBILITY =====
+    function showNotif(title, body, icon = '🔔') {
+      const area = document.getElementById('notif-area');
+      if (!area) return;
+      
+      const n = document.createElement('div');
+      n.className = 'notif-toast';
+      n.setAttribute('role', 'alert');
+      n.setAttribute('aria-live', 'polite');
+      n.setAttribute('aria-label', `${icon} ${title}: ${body}`);
+      n.setAttribute('tabindex', '-1');
+      n.innerHTML = `
+        <div class="notif-toast-title" aria-hidden="true">${icon} ${title}</div>
+        <div class="notif-toast-body">${body}</div>
+      `;
+      area.appendChild(n);
+      
+      // Focus for screen readers (optional, can be annoying if overused)
+      // n.focus();
+      
+      // Auto-remove after 4 seconds with animation
+      setTimeout(() => { 
+        n.style.transition = 'opacity 0.3s, transform 0.3s';
+        n.style.opacity = '0'; 
+        n.style.transform = 'translateX(100%)';
+        setTimeout(() => n.remove(), 300); 
+      }, 4000);
+    }
+
+    // ===== CLOCK =====
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    // ===== MESSAGE HANDLER (from iframe apps) =====
+    window.addEventListener('message', e => {
+      if (e.data.type === 'launchApp') openApp(e.data.app);
+      if (e.data.type === 'setWallpaper') {
+        document.getElementById('desktop-bg').style.background = `url(${e.data.data}) center/cover`;
+        showNotif('Wallpaper', 'New wallpaper applied!');
+      }
+      if (e.data.type === 'setAccent') {
+        document.documentElement.style.setProperty('--accent', e.data.color);
+        showNotif('Theme', 'Accent color updated');
+      }
+    });
+
+    // ===== INIT =====
+    initLauncher();
+    showNotif('Welcome', 'SpectraOS v1.0 is ready');
+
+    // Keyboard shortcuts with accessibility improvements
+    document.addEventListener('keydown', e => {
+      // Don't trigger shortcuts when typing in inputs
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      if (e.key === 'Escape') { 
+        const launcher = document.getElementById('launcher');
+        if (launcher.classList.contains('open')) {
+          toggleLauncher();
+          return;
+        }
+        // Close context menu if open
+        if (ctxMenuOpen) {
+          hideCtx();
+          return;
+        }
+      }
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === 't') { e.preventDefault(); openApp('app02_terminal.html'); }
+        if (e.key === 'n') { e.preventDefault(); openApp('app39_notes.html'); }
+        if (e.key === 'e') { e.preventDefault(); openApp('app01_codeeditor.html'); }
+        if (e.key === 'k') { e.preventDefault(); toggleLauncher(); } // Cmd/Ctrl+K to open launcher
+      }
+      // Space or Enter to launch selected app in launcher
+      if ((e.key === 'Enter' || e.key === ' ') && document.getElementById('launcher').classList.contains('open')) {
+        const selected = document.querySelector('.launcher-app[aria-selected="true"]');
+        if (selected && selected.style.display !== 'none') {
+          e.preventDefault();
+          selected.click();
+        }
+      }
+      // Alt+F4 to close active window (Windows convention)
+      if (e.altKey && e.key === 'F4') {
+        e.preventDefault();
+        const activeWindowId = Object.keys(windows).find(id => windows[id].classList.contains('focused'));
+        if (activeWindowId) {
+          closeWindow(activeWindowId);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

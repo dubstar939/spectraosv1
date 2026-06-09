@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Minesweeper — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    #ms-grid{display:grid;grid-template-columns:repeat(10,30px);gap:1px;margin:10px auto;justify-content:center;}
+    .ms-cell{width:30px;height:30px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;border-radius:3px;}
+    .ms-cell.revealed{background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.3);}
+    .ms-cell.mine{background:#ff0055;color:#fff;}
+    .ms-cell.flagged::after{content:"🚩";}
+    .ms-status{text-align:center;margin:10px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:380px;height:460px;">
+    <div class="titlebar"><div class="title">Minesweeper</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="ms-status" id="msStatus">Mines: 15</div>
+      <div id="ms-grid"></div>
+      <div style="text-align:center;margin-top:10px;"><button class="btn" onclick="initMS()">New Game</button></div>
+    </div>
+  </div>
+  <script>
+    const MS_W=10, MS_H=10, MINES=15;
+    let board=[], revealed=[], flagged=[], gameOver=false;
+    function initMS(){
+      board=[]; revealed=[]; flagged=[]; gameOver=false;
+      document.getElementById('msStatus').textContent='Mines: '+MINES;
+      for(let i=0;i<MS_W*MS_H;i++){board.push(0); revealed.push(false); flagged.push(false);}
+      let placed=0;
+      while(placed<MINES){let i=Math.floor(Math.random()*board.length); if(board[i]!==-1){board[i]=-1; placed++;}}
+      for(let i=0;i<board.length;i++){
+        if(board[i]===-1) continue;
+        let count=0, r=Math.floor(i/MS_W), c=i%MS_W;
+        for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+          let nr=r+dr, nc=c+dc;
+          if(nr>=0&&nr<MS_H&&nc>=0&&nc<MS_W&&board[nr*MS_W+nc]===-1) count++;
+        }
+        board[i]=count;
+      }
+      renderMS();
+    }
+    function renderMS(){
+      const g=document.getElementById('ms-grid'); g.innerHTML='';
+      board.forEach((v,i)=>{
+        const d=document.createElement('div'); d.className='ms-cell';
+        if(revealed[i]){
+          d.classList.add('revealed');
+          if(v===-1){d.classList.add('mine'); d.textContent='💣';}
+          else if(v>0){d.textContent=v; d.style.color=['#00ff88','#00ccff','#ffcc00','#ff0055','#cc00ff','#ff6600','#fff','#888'][v-1];}
+        } else if(flagged[i]){d.classList.add('flagged');}
+        d.onmousedown=(e)=>clickMS(i,e); g.appendChild(d);
+      });
+    }
+    function clickMS(i,e){
+      if(gameOver||revealed[i]) return;
+      if(e.button===2){flagged[i]=!flagged[i]; renderMS(); return;}
+      revealed[i]=true;
+      if(board[i]===-1){gameOver=true; document.getElementById('msStatus').textContent='Game Over!';}
+      else if(board[i]===0) floodFill(i);
+      renderMS();
+    }
+    function floodFill(i){
+      let r=Math.floor(i/MS_W), c=i%MS_W;
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        let nr=r+dr, nc=c+dc, ni=nr*MS_W+nc;
+        if(nr>=0&&nr<MS_H&&nc>=0&&nc<MS_W&&!revealed[ni]){revealed[ni]=true; if(board[ni]===0) floodFill(ni);}
+      }
+    }
+    initMS();
+  </script>
+</body>
+</html>

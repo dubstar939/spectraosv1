@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sprite Sheet Viewer — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .ss-layout{display:flex;height:calc(100% - 40px);gap:12px;}
+    .ss-controls{width:160px;padding:10px;}
+    .ss-control{margin-bottom:12px;}
+    .ss-label{font-size:11px;opacity:.5;margin-bottom:4px;}
+    .ss-canvas-area{flex:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);border-radius:8px;}
+    #ssCanvas{background:#0a0a0f;border-radius:8px;}
+    .ss-anim{margin-top:10px;text-align:center;}
+    .ss-frame-info{font-size:12px;opacity:.6;margin-top:8px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:560px;height:460px;">
+    <div class="titlebar"><div class="title">👾 Sprite Sheet Viewer</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="ss-layout">
+        <div class="ss-controls">
+          <div class="ss-control"><div class="ss-label">Grid X</div><input type="range" class="input" id="ssGridX" min="1" max="8" value="4" oninput="renderSS()"></div>
+          <div class="ss-control"><div class="ss-label">Grid Y</div><input type="range" class="input" id="ssGridY" min="1" max="8" value="4" oninput="renderSS()"></div>
+          <div class="ss-control"><div class="ss-label">Frame Delay (ms)</div><input type="range" class="input" id="ssDelay" min="50" max="500" value="150" oninput="updateDelay()"></div>
+          <div class="ss-anim"><button class="btn" onclick="toggleAnim()" id="ssPlayBtn">▶ Play</button></div>
+          <div class="ss-frame-info" id="ssInfo">Frame: 1 / 16</div>
+        </div>
+        <div class="ss-canvas-area">
+          <canvas id="ssCanvas" width="320" height="320"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const c=document.getElementById('ssCanvas'),ctx=c.getContext('2d');
+    let animating=false,currentFrame=0,interval;
+    function renderSS(){
+      const gx=parseInt(document.getElementById('ssGridX').value),gy=parseInt(document.getElementById('ssGridY').value);
+      const cw=320/gx,ch=320/gy;ctx.fillStyle='#0a0a0f';ctx.fillRect(0,0,320,320);
+      for(let y=0;y<gy;y++)for(let x=0;x<gx;x++){
+        const fx=x*cw,fy=y*ch;
+        ctx.fillStyle='hsl('+(x*60+y*30)+',70%,50%)';ctx.fillRect(fx+2,fy+2,cw-4,ch-4);
+        ctx.fillStyle='#fff';ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText((y*gx+x+1),fx+cw/2,fy+ch/2+3);
+        ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.strokeRect(fx,fy,cw,ch);
+      }
+      document.getElementById('ssInfo').textContent='Frame: '+(currentFrame+1)+' / '+(gx*gy);
+    }
+    function updateDelay(){if(animating){clearInterval(interval);const d=parseInt(document.getElementById('ssDelay').value);interval=setInterval(nextFrame,d);}}
+    function toggleAnim(){animating=!animating;document.getElementById('ssPlayBtn').textContent=animating?'⏸ Pause':'▶ Play';if(animating){const d=parseInt(document.getElementById('ssDelay').value);interval=setInterval(nextFrame,d);}else{clearInterval(interval);}}
+    function nextFrame(){const gx=parseInt(document.getElementById('ssGridX').value),gy=parseInt(document.getElementById('ssGridY').value);currentFrame=(currentFrame+1)%(gx*gy);renderSS();const cw=320/gx,ch=320/gy;const fx=(currentFrame%gx)*cw,fy=Math.floor(currentFrame/gx)*ch;ctx.strokeStyle='#00ff88';ctx.lineWidth=3;ctx.strokeRect(fx,fy,cw,ch);}
+    renderSS();
+  </script>
+</body>
+</html>

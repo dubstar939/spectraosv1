@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Git Client — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .git-layout{display:flex;height:calc(100% - 40px);}
+    .git-sidebar{width:200px;border-right:1px solid rgba(255,255,255,.1);padding:10px;}
+    .git-section{margin-bottom:15px;}
+    .git-section-title{font-size:11px;opacity:.5;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+    .git-item{padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s;display:flex;align-items:center;gap:6px;}
+    .git-item:hover{background:rgba(255,255,255,.1);}
+    .git-main{flex:1;padding:15px;overflow-y:auto;}
+    .git-commit{padding:10px;border-radius:8px;background:rgba(255,255,255,.05);margin-bottom:8px;border-left:3px solid #00ff88;}
+    .git-hash{font-family:monospace;font-size:11px;opacity:.5;}
+    .git-msg{font-size:13px;margin:4px 0;}
+    .git-meta{font-size:11px;opacity:.5;}
+    .git-diff{background:rgba(0,0,0,.3);border-radius:6px;padding:10px;font-family:monospace;font-size:12px;line-height:1.6;margin-top:10px;}
+    .git-diff-add{color:#00ff88;}
+    .git-diff-rem{color:#ff0055;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:600px;height:450px;">
+    <div class="titlebar"><div class="title">🌿 Git Client</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="git-layout">
+        <div class="git-sidebar">
+          <div class="git-section">
+            <div class="git-section-title">Branches</div>
+            <div class="git-item" style="color:#00ff88;">● main</div>
+            <div class="git-item">○ develop</div>
+            <div class="git-item">○ feature/ui</div>
+            <div class="git-item">○ hotfix/auth</div>
+          </div>
+          <div class="git-section">
+            <div class="git-section-title">Remotes</div>
+            <div class="git-item">🌐 origin</div>
+            <div class="git-item">🌐 upstream</div>
+          </div>
+        </div>
+        <div class="git-main">
+          <div style="display:flex;gap:8px;margin-bottom:15px;">
+            <button class="btn" onclick="commit()">➕ Commit</button>
+            <button class="btn" onclick="push()">⬆ Push</button>
+            <button class="btn" onclick="pull()">⬇ Pull</button>
+            <button class="btn" onclick="branch()">🌿 Branch</button>
+          </div>
+          <div id="commits"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const commits=[{h:'a1b2c3d',m:'Initial commit',a:'Spectra',t:'2h ago'},{h:'e4f5g6h',m:'Add window manager',a:'Dev1',t:'1h ago'},{h:'i7j8k9l',m:'Fix drag logic',a:'Dev2',t:'30m ago'},{h:'m0n1o2p',m:'Add app launcher',a:'Spectra',t:'10m ago'}];
+    function renderCommits(){
+      const c=document.getElementById('commits');c.innerHTML='';
+      commits.forEach(x=>{
+        const el=document.createElement('div');el.className='git-commit';
+        el.innerHTML='<div class="git-hash">'+x.h+'</div><div class="git-msg">'+x.m+'</div><div class="git-meta">'+x.a+' • '+x.t+'</div>';
+        el.onclick=()=>showDiff(x);c.appendChild(el);
+      });
+    }
+    function showDiff(c){
+      const area=document.getElementById('commits');
+      const diff=document.createElement('div');diff.className='git-diff';
+      diff.innerHTML='<div class="git-diff-add">+ Added '+c.m+'</div><div class="git-diff-add">+ 12 lines added</div><div class="git-diff-rem">- 3 lines removed</div>';
+      area.appendChild(diff);
+    }
+    function commit(){const msg=prompt('Commit message:');if(msg){commits.unshift({h:Math.random().toString(36).slice(2,9),m:msg,a:'You',t:'Just now'});renderCommits();}}
+    function push(){alert('Pushed to origin/main');}
+    function pull(){alert('Pulled latest changes');}
+    function branch(){const name=prompt('Branch name:');if(name)alert('Created branch: '+name);}
+    renderCommits();
+  </script>
+</body>
+</html>

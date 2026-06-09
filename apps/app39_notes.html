@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Notes — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .notes-layout{display:flex;height:calc(100% - 40px);}
+    .notes-sidebar{width:180px;border-right:1px solid rgba(255,255,255,.1);padding:10px;overflow-y:auto;}
+    .notes-list-item{padding:8px 10px;border-radius:6px;cursor:pointer;margin-bottom:4px;font-size:13px;transition:all .2s;}
+    .notes-list-item:hover,.notes-list-item.active{background:rgba(255,255,255,.1);}
+    .notes-editor{flex:1;display:flex;flex-direction:column;}
+    .notes-title-input{background:transparent;border:none;color:#fff;font-size:18px;font-weight:600;padding:10px 15px;border-bottom:1px solid rgba(255,255,255,.1);outline:none;}
+    .notes-textarea{flex:1;background:transparent;border:none;color:#fff;padding:15px;font-size:14px;resize:none;outline:none;line-height:1.6;}
+    .notes-toolbar{display:flex;gap:8px;padding:8px 15px;border-bottom:1px solid rgba(255,255,255,.1);}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:600px;height:450px;">
+    <div class="titlebar"><div class="title">📝 Notes</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="notes-toolbar">
+        <button class="btn" onclick="newNote()">+ New</button>
+        <button class="btn" onclick="deleteNote()">🗑 Delete</button>
+      </div>
+      <div class="notes-layout">
+        <div class="notes-sidebar" id="notesList"></div>
+        <div class="notes-editor">
+          <input class="notes-title-input" id="noteTitle" placeholder="Note title...">
+          <textarea class="notes-textarea" id="noteBody" placeholder="Start typing..."></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    let notes=[{id:1,title:'Welcome to SpectraOS',body:'This is your notes app. Create, edit, and organize your thoughts.'},{id:2,title:'Ideas',body:'- Build a pixel art game
+- Design new UI themes
+- Learn WebAssembly'}];
+    let activeId=1;
+    function renderList(){
+      const list=document.getElementById('notesList'); list.innerHTML='';
+      notes.forEach(n=>{
+        const el=document.createElement('div'); el.className='notes-list-item'+(n.id===activeId?' active':'');
+        el.textContent=n.title||'(Untitled)'; el.onclick=()=>{activeId=n.id; renderList(); loadNote();}; list.appendChild(el);
+      });
+    }
+    function loadNote(){
+      const n=notes.find(x=>x.id===activeId)||notes[0];
+      document.getElementById('noteTitle').value=n.title;
+      document.getElementById('noteBody').value=n.body;
+    }
+    function saveNote(){
+      const n=notes.find(x=>x.id===activeId); if(!n) return;
+      n.title=document.getElementById('noteTitle').value; n.body=document.getElementById('noteBody').value;
+      renderList();
+    }
+    function newNote(){const id=Date.now(); notes.push({id,title:'New Note',body:''}); activeId=id; renderList(); loadNote();}
+    function deleteNote(){notes=notes.filter(n=>n.id!==activeId); if(!notes.length) newNote(); else activeId=notes[0].id; renderList(); loadNote();}
+    document.getElementById('noteTitle').addEventListener('input',saveNote);
+    document.getElementById('noteBody').addEventListener('input',saveNote);
+    renderList(); loadNote();
+  </script>
+</body>
+</html>

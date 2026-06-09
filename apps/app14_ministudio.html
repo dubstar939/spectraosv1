@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mini Art Studio — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    .ms-layout{display:flex;height:calc(100% - 40px);}
+    .ms-layers{width:140px;border-right:1px solid rgba(255,255,255,.1);padding:10px;}
+    .ms-layer{padding:8px 10px;border-radius:6px;margin-bottom:4px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s;}
+    .ms-layer:hover,.ms-layer.active{background:rgba(255,255,255,.1);}
+    .ms-layer-vis{width:16px;height:16px;border-radius:3px;background:rgba(0,255,136,.3);display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;}
+    .ms-canvas-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+    .ms-toolbar{display:flex;gap:8px;padding:8px;justify-content:center;flex-wrap:wrap;}
+    .ms-brush{width:32px;height:32px;border-radius:6px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-size:14px;}
+    .ms-brush:hover,.ms-brush.active{background:rgba(255,255,255,.15);}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:600px;height:480px;">
+    <div class="titlebar"><div class="title">🖌 Mini Art Studio</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <div class="ms-toolbar">
+        <div class="ms-brush active" onclick="setBrush('pen')">✏️</div>
+        <div class="ms-brush" onclick="setBrush('brush')">🖌</div>
+        <div class="ms-brush" onclick="setBrush('airbrush')">💨</div>
+        <div class="ms-brush" onclick="setBrush('eraser')">🧼</div>
+        <input type="color" class="input" id="msColor" value="#00ff88" style="width:40px;height:32px;padding:0;border:none;">
+        <input type="range" class="input" id="msSize" min="1" max="50" value="5" style="width:80px;">
+        <button class="btn" onclick="addLayer()">+ Layer</button>
+        <button class="btn" onclick="mergeLayer()">Merge</button>
+        <button class="btn" onclick="downloadArt()">💾</button>
+      </div>
+      <div class="ms-layout">
+        <div class="ms-layers" id="msLayers"></div>
+        <div class="ms-canvas-area">
+          <canvas id="msCanvas" width="400" height="300" style="background:#0a0a0f;border-radius:8px;cursor:crosshair;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const c=document.getElementById('msCanvas'),ctx=c.getContext('2d');
+    let layers=[{name:'Background',visible:true,data:null},{name:'Layer 1',visible:true,data:null}],activeLayer=1,brush='pen',drawing=false;
+    function renderLayers(){const l=document.getElementById('msLayers');l.innerHTML='';layers.forEach((layer,i)=>{const el=document.createElement('div');el.className='ms-layer'+(i===activeLayer?' active':'');el.innerHTML='<div class="ms-layer-vis" onclick="toggleVis('+i+')">'+(layer.visible?'👁':'')+'</div><span>'+layer.name+'</span>';el.onclick=()=>{activeLayer=i;renderLayers();};l.appendChild(el);});}
+    function toggleVis(i){layers[i].visible=!layers[i].visible;renderLayers();}
+    function addLayer(){layers.push({name:'Layer '+(layers.length),visible:true,data:null});activeLayer=layers.length-1;renderLayers();}
+    function mergeLayer(){if(activeLayer>0){layers.splice(activeLayer,1);activeLayer=Math.max(0,activeLayer-1);renderLayers();}}
+    function setBrush(b){brush=b;document.querySelectorAll('.ms-brush').forEach(x=>x.classList.remove('active'));event.target.classList.add('active');}
+    c.addEventListener('mousedown',e=>{drawing=true;draw(e);});
+    c.addEventListener('mousemove',e=>{if(drawing)draw(e);});
+    c.addEventListener('mouseup',()=>drawing=false);
+    c.addEventListener('mouseleave',()=>drawing=false);
+    function draw(e){const r=c.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;const size=parseInt(document.getElementById('msSize').value);const color=document.getElementById('msColor').value;ctx.beginPath();if(brush==='pen'){ctx.arc(x,y,size/2,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}else if(brush==='brush'){ctx.arc(x,y,size,0,Math.PI*2);ctx.fillStyle=color;ctx.globalAlpha=.5;ctx.fill();ctx.globalAlpha=1;}else if(brush==='airbrush'){for(let i=0;i<20;i++){const ox=(Math.random()-.5)*size*2,oy=(Math.random()-.5)*size*2;ctx.fillStyle=color;ctx.globalAlpha=.1;ctx.fillRect(x+ox,y+oy,2,2);}ctx.globalAlpha=1;}else if(brush==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.arc(x,y,size,0,Math.PI*2);ctx.fill();ctx.globalCompositeOperation='source-over';}}
+    function downloadArt(){const link=document.createElement('a');link.download='artwork.png';link.href=c.toDataURL();link.click();}
+    renderLayers();
+  </script>
+</body>
+</html>

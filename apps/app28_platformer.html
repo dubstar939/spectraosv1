@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pixel Platformer — SpectraOS</title>
+  <link rel="stylesheet" href="spectra.css">
+  <style>
+    #plat-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;}
+    .plat-controls{text-align:center;margin:10px;}
+  </style>
+</head>
+<body>
+  <div class="window" style="width:520px;height:420px;">
+    <div class="titlebar"><div class="title">🏃 Pixel Platformer</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+    <div class="winbody">
+      <canvas id="plat-canvas" width="480" height="280"></canvas>
+      <div class="plat-controls">Arrows to move • Space to jump • R to restart</div>
+    </div>
+  </div>
+  <script>
+    const c=document.getElementById('plat-canvas'), ctx=c.getContext('2d');
+    let px=50, py=200, pvx=0, pvy=0, onGround=false, keys={}, coins=[], score=0;
+    const platforms=[[0,250,480,30],[150,200,100,10],[300,150,100,10],[50,120,80,10],[350,100,80,10]];
+    function reset(){
+      px=50; py=200; pvx=0; pvy=0; score=0;
+      coins=[[170,180],[320,130],[70,100],[370,80],[250,230]];
+    }
+    reset();
+    document.addEventListener('keydown',e=>{keys[e.code]=true; if(e.code==='Space')e.preventDefault();});
+    document.addEventListener('keyup',e=>keys[e.code]=false);
+    function update(){
+      if(keys['ArrowLeft']) pvx=-3; else if(keys['ArrowRight']) pvx=3; else pvx*=0.8;
+      if(keys['Space'] && onGround){pvy=-10; onGround=false;}
+      pvy+=0.5; px+=pvx; py+=pvy; onGround=false;
+      platforms.forEach(p=>{
+        if(px+15>p[0] && px<p[0]+p[2] && py+20>p[1] && py+20<p[1]+p[3]+10 && pvy>=0){
+          py=p[1]-20; pvy=0; onGround=true;
+        }
+      });
+      if(py>300) reset();
+      coins.forEach((coin,i)=>{
+        if(coin && Math.abs(px+7-coin[0])<15 && Math.abs(py+10-coin[1])<15){coins[i]=null; score+=10;}
+      });
+    }
+    function draw(){
+      ctx.fillStyle='#0a0a0f'; ctx.fillRect(0,0,480,280);
+      ctx.fillStyle='rgba(0,255,136,.2)'; platforms.forEach(p=>ctx.fillRect(p[0],p[1],p[2],p[3]));
+      ctx.fillStyle='#00ff88'; ctx.fillRect(px,py,15,20);
+      ctx.fillStyle='#ffcc00'; coins.forEach(coin=>{if(coin){ctx.beginPath();ctx.arc(coin[0],coin[1],6,0,Math.PI*2);ctx.fill();}});
+      ctx.fillStyle='#fff'; ctx.font='16px monospace'; ctx.fillText('Score: '+score,10,20);
+      requestAnimationFrame(()=>{update();draw();});
+    }
+    draw();
+  </script>
+</body>
+</html>
