@@ -298,8 +298,8 @@ html, body {
     flex-direction: column;
     overflow: hidden;
     transition: transform var(--transition-smooth), opacity var(--transition-smooth), box-shadow var(--transition-smooth);
-    min-width: 280px;
-    min-height: 180px;
+    min-width: 560px;
+    min-height: 360px;
     animation: windowOpen var(--transition-bounce);
 }
 

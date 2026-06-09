@@ -346,8 +346,8 @@ class WindowManager {
         win.id = id;
         win.dataset.appId = appId;
 
-        const width = options.width || 800;
-        const height = options.height || 500;
+        const width = options.width || 1200;
+        const height = options.height || 800;
         const x = options.x || (50 + (this.windows.size * 30) % 200);
         const y = options.y || (50 + (this.windows.size * 30) % 150);
 
