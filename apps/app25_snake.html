@@ -5,19 +5,25 @@
   <title>Snake — SpectraOS</title>
   <link rel="stylesheet" href="spectra.css">
   <style>
-    #snake-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);}
-    .snake-info{text-align:center;font-size:14px;margin:10px;}
-    .snake-controls{text-align:center;font-size:12px;opacity:.7;}
+    .snake-container{display:flex;flex-direction:column;height:100%;}
+    #snake-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);max-width:100%;max-height:calc(100% - 100px);}
+    .snake-info{text-align:center;font-size:14px;margin:10px;flex-shrink:0;}
+    .snake-controls{text-align:center;font-size:12px;opacity:.7;flex-shrink:0;}
+    .snake-body{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;}
   </style>
 </head>
 <body>
   <div class="window" style="width:360px;height:420px;">
     <div class="titlebar"><div class="title">🐍 Snake</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
-    <div class="winbody">
-      <div class="snake-info">Score: <span id="snakeScore">0</span> | High: <span id="snakeHigh">0</span></div>
-      <canvas id="snake-canvas" width="300" height="300"></canvas>
-      <div class="snake-controls">Arrow keys to move • Space to pause</div>
-      <div style="text-align:center;margin-top:5px;"><button class="btn" onclick="initSnake()">New Game</button></div>
+    <div class="winbody" style="padding:0;">
+      <div class="snake-container">
+        <div class="snake-info">Score: <span id="snakeScore">0</span> | High: <span id="snakeHigh">0</span></div>
+        <div class="snake-body">
+          <canvas id="snake-canvas" width="300" height="300"></canvas>
+        </div>
+        <div class="snake-controls">Arrow keys to move • Space to pause</div>
+        <div style="text-align:center;margin-top:5px;padding:10px;"><button class="btn" onclick="initSnake()">New Game</button></div>
+      </div>
     </div>
   </div>
   <script>

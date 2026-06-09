@@ -5,20 +5,26 @@
   <title>Physics Toy — SpectraOS</title>
   <link rel="stylesheet" href="spectra.css">
   <style>
-    #phys-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;cursor:crosshair;}
-    .phys-controls{display:flex;gap:10px;justify-content:center;margin:10px;}
+    .phys-container{display:flex;flex-direction:column;height:100%;}
+    #phys-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;cursor:crosshair;max-width:100%;max-height:calc(100% - 70px);}
+    .phys-controls{display:flex;gap:10px;justify-content:center;margin:10px;flex-shrink:0;}
+    .phys-body{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;}
   </style>
 </head>
 <body>
   <div class="window" style="width:620px;height:520px;">
     <div class="titlebar"><div class="title">🔮 Physics Toy</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
-    <div class="winbody">
-      <canvas id="phys-canvas" width="580" height="380"></canvas>
-      <div class="phys-controls">
-        <button class="btn" onclick="addBox()">Add Box</button>
-        <button class="btn" onclick="addBall()">Add Ball</button>
-        <button class="btn" onclick="bodies=[]">Clear</button>
-        <button class="btn" onclick="gravity=gravity>0?0:0.5">Toggle Gravity</button>
+    <div class="winbody" style="padding:0;">
+      <div class="phys-container">
+        <div class="phys-body">
+          <canvas id="phys-canvas" width="580" height="380"></canvas>
+        </div>
+        <div class="phys-controls">
+          <button class="btn" onclick="addBox()">Add Box</button>
+          <button class="btn" onclick="addBall()">Add Ball</button>
+          <button class="btn" onclick="bodies=[]">Clear</button>
+          <button class="btn" onclick="gravity=gravity>0?0:0.5">Toggle Gravity</button>
+        </div>
       </div>
     </div>
   </div>

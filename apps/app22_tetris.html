@@ -5,25 +5,31 @@
   <title>Tetris — SpectraOS</title>
   <link rel="stylesheet" href="spectra.css">
   <style>
-    #tetris-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);}
-    .tetris-info{display:flex;justify-content:space-around;padding:10px;font-size:14px;}
+    .tetris-container{display:flex;flex-direction:column;height:100%;}
+    #tetris-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);max-width:100%;max-height:calc(100% - 140px);}
+    .tetris-info{display:flex;justify-content:space-around;padding:10px;font-size:14px;flex-shrink:0;}
     .tetris-next{padding:10px;text-align:center;}
     #nextCanvas{width:80px;height:80px;background:#0a0a0f;border-radius:6px;margin:5px auto;}
-    .tetris-controls{text-align:center;margin:10px;font-size:12px;opacity:.7;}
+    .tetris-controls{text-align:center;margin:10px;font-size:12px;opacity:.7;flex-shrink:0;}
+    .tetris-body{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;}
   </style>
 </head>
 <body>
   <div class="window" style="width:340px;height:520px;">
     <div class="titlebar"><div class="title">🧩 Tetris</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
-    <div class="winbody">
-      <div class="tetris-info">
-        <div>Score: <span id="tetrisScore">0</span></div>
-        <div>Level: <span id="tetrisLevel">1</span></div>
-        <div class="tetris-next">Next:<br><canvas id="nextCanvas" width="80" height="80"></canvas></div>
+    <div class="winbody" style="padding:0;">
+      <div class="tetris-container">
+        <div class="tetris-info">
+          <div>Score: <span id="tetrisScore">0</span></div>
+          <div>Level: <span id="tetrisLevel">1</span></div>
+          <div class="tetris-next">Next:<br><canvas id="nextCanvas" width="80" height="80"></canvas></div>
+        </div>
+        <div class="tetris-body">
+          <canvas id="tetris-canvas" width="200" height="400"></canvas>
+        </div>
+        <div class="tetris-controls">← → Move • ↑ Rotate • ↓ Soft Drop • Space Hard Drop</div>
+        <div style="text-align:center;padding:10px;"><button class="btn" onclick="initTetris()">New Game</button></div>
       </div>
-      <canvas id="tetris-canvas" width="200" height="400"></canvas>
-      <div class="tetris-controls">← → Move • ↑ Rotate • ↓ Soft Drop • Space Hard Drop</div>
-      <div style="text-align:center;"><button class="btn" onclick="initTetris()">New Game</button></div>
     </div>
   </div>
   <script>

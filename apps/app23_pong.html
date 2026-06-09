@@ -5,19 +5,25 @@
   <title>Pong — SpectraOS</title>
   <link rel="stylesheet" href="spectra.css">
   <style>
-    #pong-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);}
-    .pong-score{text-align:center;font-size:24px;margin:10px;font-family:monospace;}
-    .pong-controls{text-align:center;font-size:12px;opacity:.7;margin:5px;}
+    .pong-container{display:flex;flex-direction:column;height:100%;}
+    #pong-canvas{display:block;margin:10px auto;border-radius:8px;background:#0a0a0f;border:2px solid rgba(255,255,255,.1);max-width:100%;max-height:calc(100% - 100px);}
+    .pong-score{text-align:center;font-size:24px;margin:10px;font-family:monospace;flex-shrink:0;}
+    .pong-controls{text-align:center;font-size:12px;opacity:.7;margin:5px;flex-shrink:0;}
+    .pong-body{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;}
   </style>
 </head>
 <body>
   <div class="window" style="width:420px;height:380px;">
     <div class="titlebar"><div class="title">🏓 Pong</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
-    <div class="winbody">
-      <div class="pong-score"><span id="p1Score">0</span> — <span id="p2Score">0</span></div>
-      <canvas id="pong-canvas" width="380" height="240"></canvas>
-      <div class="pong-controls">W/S or ↑/↓ to move • Click to start</div>
-      <div style="text-align:center;margin-top:5px;"><button class="btn" onclick="initPong()">New Game</button></div>
+    <div class="winbody" style="padding:0;">
+      <div class="pong-container">
+        <div class="pong-score"><span id="p1Score">0</span> — <span id="p2Score">0</span></div>
+        <div class="pong-body">
+          <canvas id="pong-canvas" width="380" height="240"></canvas>
+        </div>
+        <div class="pong-controls">W/S or ↑/↓ to move • Click to start</div>
+        <div style="text-align:center;margin-top:5px;padding:10px;"><button class="btn" onclick="initPong()">New Game</button></div>
+      </div>
     </div>
   </div>
   <script>
