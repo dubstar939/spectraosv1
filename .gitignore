@@ -1,5 +1,42 @@
-Nothing needs to be added to the .gitignore file based on the provided changes. The modification of 'index.html' does not introduce any new files or artifacts that require ignoring. The current .gitignore content remains unchanged.
-
 ```
-# No changes needed
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+dist/
+build/
+target/
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+.env
+.env.local
+*.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Editors
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# MyPy cache
+.mypy_cache/
+# PyTest cache
+.pytest_cache/
+
 ```
