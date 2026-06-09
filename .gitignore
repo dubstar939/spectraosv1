@@ -1,42 +1,51 @@
-```
-# HTML specific build artifacts and temp files
-*.tmp
-*.log
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+*.class
+*.exe
+*.dll
+*.so
+*.a
+*.out
 
-# Common web development ignores
+# Dependencies
 node_modules/
-dist/
-build/
+venv/
+.venv/
+.env
+.env.local
+.env.*
 
-# Editor/IDE files
-.vscode/
-.idea/
+# Logs and temp files
+*.log
+*.tmp
 *.swp
 *.swo
+
+# Editors
+.vscode/
+.idea/
 
 # System files
 .DS_Store
 Thumbs.db
 
-# Environment files
-.env
-.env.local
-*.env.*
-
-# Coverage and testing
+# Coverage
 coverage/
 htmlcov/
 .coverage
 
-# Python specific (if applicable)
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg-info/
-.eggs/
+# Build directories
+dist/
+build/
+target/
+.gradle/
+
+# Python specific
+.mypy_cache/
+.pytest_cache/
 
 # Compressed files
 *.zip
@@ -61,4 +70,3 @@ __pycache__/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-```

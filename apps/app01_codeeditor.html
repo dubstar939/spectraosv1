@@ -42,20 +42,45 @@
     </div>
   </div>
   <script>
-    let files=[{name:'main.js',content:'// Welcome to SpectraOS Code Editor
-function hello() {
-  console.log("Hello, Spectra!");
-}
-
-hello();',lang:'js'},{name:'styles.css',content:'body {
-  background: #0a0a1f;
-  color: #00ff88;
-}',lang:'css'},{name:'index.html',content:'<!DOCTYPE html>
-<html>
-  <head><title>Spectra</title></head>
-  <body>Hello World</body>
-</html>',lang:'html'}];
-    let active=0;
+    const STORAGE_KEY = 'spectraos-codeeditor-files';
+    let files = [];
+    let active = 0;
+    
+    // Load files from localStorage on init
+    function loadFilesFromStorage() {
+        try {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                const parsed = JSON.parse(data);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    files = parsed;
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load code editor files:', e);
+        }
+        // Default files if nothing saved
+        files = [
+            {name:'main.js', content: '// Welcome to SpectraOS Code Editor\nfunction hello() {\n  console.log("Hello, Spectra!");\n}\n\nhello();', lang:'js'},
+            {name:'styles.css', content: 'body {\n  background: #0a0a1f;\n  color: #00ff88;\n}', lang:'css'},
+            {name:'index.html', content: '<!DOCTYPE html>\n<html>\n  <head><title>Spectra</title></head>\n  <body>Hello World</body>\n</html>', lang:'html'}
+        ];
+        return false;
+    }
+    
+    // Save files to localStorage
+    function saveFilesToStorage() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
+        } catch (e) {
+            console.error('Failed to save code editor files:', e);
+        }
+    }
+    
+    // Initialize
+    loadFilesFromStorage();
+    
     function renderFiles(){
       const list=document.getElementById('fileList');list.innerHTML='';
       files.forEach((f,i)=>{
@@ -72,13 +97,11 @@ hello();',lang:'js'},{name:'styles.css',content:'body {
       });
     }
     function loadFile(){document.getElementById('codeArea').value=files[active].content;updateLines();}
-    function saveCurrent(){files[active].content=document.getElementById('codeArea').value;}
-    function newFile(){const name='untitled'+(files.length+1)+'.js';files.push({name,content:'// New file
-',lang:'js'});active=files.length-1;renderFiles();renderTabs();loadFile();}
-    function saveFile(){showNotif('Saved',files[active].name+' saved successfully');}
+    function saveCurrent(){files[active].content=document.getElementById('codeArea').value;saveFilesToStorage();}
+    function newFile(){const name='untitled'+(files.length+1)+'.js';files.push({name,content:'// New file\n',lang:'js'});active=files.length-1;renderFiles();renderTabs();loadFile();saveFilesToStorage();}
+    function saveFile(){saveCurrent();showNotif('Saved',files[active].name+' saved successfully');}
     function runCode(){try{const r=eval(files[active].content);showNotif('Output',String(r!==undefined?r:'Executed'));}catch(e){showNotif('Error',e.message);}}
-    function updateLines(){const n=document.getElementById('codeArea').value.split('
-').length;document.getElementById('lineNums').innerHTML=Array(n).fill(0).map((_,i)=>i+1).join('<br>');}
+    function updateLines(){const n=document.getElementById('codeArea').value.split('\n').length;document.getElementById('lineNums').innerHTML=Array(n).fill(0).map((_,i)=>i+1).join('<br>');}
     document.getElementById('codeArea').addEventListener('input',updateLines);
     document.getElementById('codeArea').addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,s=t.selectionStart;t.value=t.value.slice(0,s)+'  '+t.value.slice(t.selectionEnd);t.selectionStart=t.selectionEnd=s+2;}});
     function showNotif(t,b){if(window.parent!==window)window.parent.postMessage({type:'notif',title:t,body:b},'*');}
