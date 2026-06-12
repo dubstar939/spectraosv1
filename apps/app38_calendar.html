@@ -124,7 +124,7 @@
     function addEvent(key) {
       const input = document.getElementById('newEventInput');
       const val = input?.value.trim();
-      if(!val) return;
+      if(!val || !selectedDate) return;
       if(!events[key]) events[key] = [];
       events[key].push(val);
       saveEvents();
@@ -132,11 +132,10 @@
     }
     
     function deleteEvent(key, idx) {
-      if(events[key]) {
-        events[key].splice(idx, 1);
-        saveEvents();
-        showEvents(selectedDate.y, selectedDate.m, selectedDate.d, document.querySelector('.cal-day.selected'));
-      }
+      if(!selectedDate || !events[key]) return;
+      events[key].splice(idx, 1);
+      saveEvents();
+      showEvents(selectedDate.y, selectedDate.m, selectedDate.d, document.querySelector('.cal-day.selected'));
     }
     
     function changeMonth(delta){
