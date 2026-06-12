@@ -5,6 +5,14 @@
   <title>Calendar — SpectraOS</title>
   <link rel="stylesheet" href="spectra.css">
   <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+    .window { width: 100%; height: 100%; display: flex; flex-direction: column; }
+    .titlebar { height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .title { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+    .winbtns { display: flex; gap: 6px; }
+    .winbtn { width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer; background: #ff5f57; }
+    .winbody { flex: 1; padding: 10px; display: flex; flex-direction: column; overflow: auto; }
     .cal-header{display:flex;justify-content:space-between;align-items:center;padding:10px 15px;}
     .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:10px;}
     .cal-day-h{text-align:center;font-size:11px;opacity:.5;padding:5px;}
@@ -12,13 +20,18 @@
     .cal-day:hover{background:rgba(255,255,255,.1);}
     .cal-day.today{background:#00ff88;color:#000;font-weight:600;}
     .cal-day.other{opacity:.3;}
-    .cal-events{margin:10px 15px;padding:10px;background:rgba(255,255,255,.05);border-radius:8px;min-height:60px;}
-    .cal-event{padding:4px 8px;margin:3px 0;background:rgba(0,255,136,.1);border-radius:4px;font-size:12px;}
+    .cal-day.selected{border:2px solid #00ff88;}
+    .cal-events{margin:10px 15px;padding:10px;background:rgba(255,255,255,.05);border-radius:8px;min-height:80px;}
+    .cal-event{padding:6px 10px;margin:4px 0;background:rgba(0,255,136,.15);border-radius:4px;font-size:12px;display:flex;justify-content:space-between;align-items:center;}
+    .cal-event button{background:none;border:none;color:#ff5f57;cursor:pointer;font-size:14px;}
+    .add-event-form{display:flex;gap:8px;margin-top:10px;}
+    .add-event-form input{flex:1;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#fff;font-size:12px;}
+    .add-event-form button{padding:6px 12px;border-radius:6px;border:none;background:#00ff88;color:#000;cursor:pointer;font-size:12px;}
   </style>
 </head>
 <body>
-  <div class="window" style="width:380px;height:460px;">
-    <div class="titlebar"><div class="title">📅 Calendar</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+  <div class="window">
+    <div class="titlebar"><div class="title">📅 Calendar</div><div class="winbtns"><button class="winbtn" onclick="window.parent.postMessage({type:'closeWindow'},'*')">×</button></div></div>
     <div class="winbody">
       <div class="cal-header">
         <button class="btn" onclick="changeMonth(-1)">◀</button>
@@ -26,33 +39,111 @@
         <button class="btn" onclick="changeMonth(1)">▶</button>
       </div>
       <div class="cal-grid" id="calGrid"></div>
-      <div class="cal-events" id="calEvents"><div style="opacity:.5;font-size:12px;">Select a day to see events</div></div>
+      <div class="cal-events" id="calEvents">
+        <div style="opacity:.5;font-size:12px;">Select a day to view/edit events</div>
+      </div>
     </div>
   </div>
   <script>
-    let curDate=new Date(), events={};
+    const STORAGE_KEY = 'spectraos-calendar-events';
+    let curDate = new Date(), selectedDate = null;
+    let events = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    
+    function saveEvents() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    }
+    
     function renderCal(){
-      const year=curDate.getFullYear(), month=curDate.getMonth();
-      document.getElementById('calMonth').textContent=curDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
-      const firstDay=new Date(year,month,1).getDay();
-      const daysInMonth=new Date(year,month+1,0).getDate();
-      const prevDays=new Date(year,month,0).getDate();
-      const grid=document.getElementById('calGrid'); grid.innerHTML='';
-      ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{const el=document.createElement('div');el.className='cal-day-h';el.textContent=d;grid.appendChild(el);});
-      for(let i=firstDay-1;i>=0;i--){const el=document.createElement('div');el.className='cal-day other';el.textContent=prevDays-i;grid.appendChild(el);}
-      const today=new Date();
-      for(let d=1;d<=daysInMonth;d++){
-        const el=document.createElement('div');el.className='cal-day';
-        if(d===today.getDate()&&month===today.getMonth()&&year===today.getFullYear()) el.classList.add('today');
-        el.textContent=d; el.onclick=()=>showEvents(year,month,d); grid.appendChild(el);
+      const year = curDate.getFullYear(), month = curDate.getMonth();
+      document.getElementById('calMonth').textContent = curDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const prevDays = new Date(year, month, 0).getDate();
+      const grid = document.getElementById('calGrid'); 
+      grid.innerHTML = '';
+      
+      ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+        const el = document.createElement('div');
+        el.className = 'cal-day-h';
+        el.textContent = d;
+        grid.appendChild(el);
+      });
+      
+      for(let i = firstDay - 1; i >= 0; i--){
+        const el = document.createElement('div');
+        el.className = 'cal-day other';
+        el.textContent = prevDays - i;
+        grid.appendChild(el);
+      }
+      
+      const today = new Date();
+      for(let d = 1; d <= daysInMonth; d++){
+        const el = document.createElement('div');
+        el.className = 'cal-day';
+        if(d === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+          el.classList.add('today');
+        }
+        const key = `${year}-${month+1}-${d}`;
+        if(selectedDate && selectedDate.key === key) el.classList.add('selected');
+        el.textContent = d;
+        el.onclick = () => showEvents(year, month, d, el);
+        grid.appendChild(el);
       }
     }
-    function showEvents(y,m,d){
-      const key=`${y}-${m+1}-${d}`;
-      if(!events[key]) events[key]=[`Meeting at ${9+d%12}:00`,`Code review`,`Lunch break`];
-      document.getElementById('calEvents').innerHTML=events[key].map(e=>`<div class="cal-event">${e}</div>`).join('');
+    
+    function showEvents(y, m, d, el){
+      // Remove previous selection
+      document.querySelectorAll('.cal-day.selected').forEach(d => d.classList.remove('selected'));
+      if(el) el.classList.add('selected');
+      
+      const key = `${y}-${m+1}-${d}`;
+      selectedDate = { key, y, m, d };
+      
+      if(!events[key]) events[key] = [];
+      
+      const container = document.getElementById('calEvents');
+      let html = '<div style="font-weight:600;margin-bottom:8px;">Events for ' + new Date(y, m, d).toLocaleDateString() + '</div>';
+      
+      if(events[key].length === 0) {
+        html += '<div style="opacity:.5;font-size:12px;">No events. Add one below:</div>';
+      } else {
+        events[key].forEach((evt, idx) => {
+          html += `<div class="cal-event"><span>${evt}</span><button onclick="deleteEvent('${key}',${idx})">×</button></div>`;
+        });
+      }
+      
+      html += `<div class="add-event-form">
+        <input type="text" id="newEventInput" placeholder="Add event..." onkeypress="if(event.key==='Enter')addEvent('${key}')">
+        <button onclick="addEvent('${key}')">Add</button>
+      </div>`;
+      
+      container.innerHTML = html;
+      setTimeout(() => document.getElementById('newEventInput')?.focus(), 10);
     }
-    function changeMonth(d){curDate.setMonth(curDate.getMonth()+d); renderCal();}
+    
+    function addEvent(key) {
+      const input = document.getElementById('newEventInput');
+      const val = input?.value.trim();
+      if(!val) return;
+      if(!events[key]) events[key] = [];
+      events[key].push(val);
+      saveEvents();
+      showEvents(selectedDate.y, selectedDate.m, selectedDate.d, document.querySelector('.cal-day.selected'));
+    }
+    
+    function deleteEvent(key, idx) {
+      if(events[key]) {
+        events[key].splice(idx, 1);
+        saveEvents();
+        showEvents(selectedDate.y, selectedDate.m, selectedDate.d, document.querySelector('.cal-day.selected'));
+      }
+    }
+    
+    function changeMonth(delta){
+      curDate.setMonth(curDate.getMonth() + delta);
+      renderCal();
+    }
+    
     renderCal();
   </script>
 </body>

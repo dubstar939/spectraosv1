@@ -6,6 +6,7 @@ body {
   background: transparent;
   color: #e0e0e0;
   overflow: hidden;
+  cursor: default; /* Clean traditional pointer */
 }
 
 /* Window chrome (used by all apps) */
