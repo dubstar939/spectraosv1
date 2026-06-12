@@ -5,55 +5,160 @@
   <title>Weather — SpectraOS</title>
   <link rel="stylesheet" href="spectra.css">
   <style>
-    .weather-main{text-align:center;padding:30px;}
-    .weather-temp{font-size:64px;font-weight:300;}
-    .weather-desc{font-size:18px;opacity:.7;margin:10px 0;}
-    .weather-location{font-size:14px;opacity:.5;}
-    .weather-forecast{display:flex;justify-content:space-around;padding:20px;}
-    .weather-day{text-align:center;padding:10px;}
-    .weather-day-name{font-size:12px;opacity:.6;margin-bottom:5px;}
-    .weather-day-temp{font-size:20px;font-weight:600;}
-    .weather-day-icon{font-size:24px;margin:5px 0;}
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+    .window { width: 100%; height: 100%; display: flex; flex-direction: column; }
+    .titlebar { height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .title { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+    .winbtns { display: flex; gap: 6px; }
+    .winbtn { width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer; background: #ff5f57; }
+    .winbody { flex: 1; padding: 15px; display: flex; flex-direction: column; overflow: auto; }
+    .weather-main{text-align:center;padding:20px;}
+    .weather-temp{font-size:56px;font-weight:300;}
+    .weather-desc{font-size:16px;opacity:.7;margin:10px 0;}
+    .weather-location{font-size:13px;opacity:.5;}
+    .weather-error{color:#ff5f57;font-size:13px;margin-top:10px;}
+    .weather-refresh{font-size:11px;opacity:.4;margin-top:5px;}
+    .weather-forecast{display:flex;justify-content:space-around;padding:15px;gap:8px;}
+    .weather-day{text-align:center;padding:8px;background:rgba(255,255,255,.05);border-radius:8px;flex:1;}
+    .weather-day-name{font-size:11px;opacity:.6;margin-bottom:5px;}
+    .weather-day-temp{font-size:16px;font-weight:600;}
+    .weather-day-icon{font-size:20px;margin:5px 0;}
+    .search-row{display:flex;gap:8px;justify-content:center;margin-top:15px;}
+    .search-row input{padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#fff;font-size:13px;width:180px;}
+    .search-row button{padding:8px 16px;border-radius:6px;border:none;background:#00ff88;color:#000;cursor:pointer;font-size:13px;}
   </style>
 </head>
 <body>
-  <div class="window" style="width:340px;height:420px;">
-    <div class="titlebar"><div class="title">🌤 Weather</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
+  <div class="window">
+    <div class="titlebar"><div class="title">🌤 Weather</div><div class="winbtns"><button class="winbtn" onclick="window.parent.postMessage({type:'closeWindow'},'*')">×</button></div></div>
     <div class="winbody">
       <div class="weather-main">
-        <div class="weather-temp" id="wTemp">72°</div>
-        <div class="weather-desc" id="wDesc">Partly Cloudy</div>
-        <div class="weather-location">San Francisco, CA</div>
+        <div class="weather-temp" id="wTemp">--°</div>
+        <div class="weather-desc" id="wDesc">Loading...</div>
+        <div class="weather-location" id="wLocation">Enter city</div>
+        <div class="weather-error" id="wError"></div>
+        <div class="weather-refresh" id="wRefresh"></div>
       </div>
       <div class="weather-forecast" id="wForecast"></div>
-      <div style="text-align:center;margin-top:10px;">
-        <input type="text" class="input" id="wCity" placeholder="Enter city..." style="width:150px;">
-        <button class="btn" onclick="searchWeather()">Search</button>
+      <div class="search-row">
+        <input type="text" id="wCity" placeholder="Enter city name..." onkeypress="if(event.key==='Enter')fetchWeather()">
+        <button onclick="fetchWeather()">Search</button>
       </div>
     </div>
   </div>
   <script>
-    const conditions=[{t:72,d:'Sunny',i:'☀️'},{t:65,d:'Partly Cloudy',i:'⛅'},{t:58,d:'Cloudy',i:'☁️'},{t:52,d:'Rainy',i:'🌧'},{t:45,d:'Stormy',i:'⛈️'},{t:38,d:'Snowy',i:'❄️'}];
-    function searchWeather(){
-      const city=document.getElementById('wCity').value;
+    const API_KEY = ''; // Open-Meteo doesn't require API key
+    let refreshInterval;
+    
+    async function fetchWeather() {
+      const city = document.getElementById('wCity').value.trim();
       if(!city) return;
-      const c=conditions[Math.floor(Math.random()*conditions.length)];
-      document.getElementById('wTemp').textContent=c.t+'°';
-      document.getElementById('wDesc').textContent=c.d;
-      document.querySelector('.weather-location').textContent=city;
-      renderForecast();
-    }
-    function renderForecast(){
-      const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-      const f=document.getElementById('wForecast'); f.innerHTML='';
-      for(let i=0;i<5;i++){
-        const c=conditions[Math.floor(Math.random()*conditions.length)];
-        const el=document.createElement('div'); el.className='weather-day';
-        el.innerHTML=`<div class="weather-day-name">${days[i]}</div><div class="weather-day-icon">${c.i}</div><div class="weather-day-temp">${c.t}°</div>`;
-        f.appendChild(el);
+      
+      const errorEl = document.getElementById('wError');
+      const refreshEl = document.getElementById('wRefresh');
+      errorEl.textContent = '';
+      
+      try {
+        // Geocoding to get lat/lon
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+        const geoData = await geoRes.json();
+        
+        if(!geoData.results || geoData.results.length === 0) {
+          throw new Error('City not found');
+        }
+        
+        const { latitude, longitude, name, country } = geoData.results[0];
+        
+        // Fetch weather data
+        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m&hourly=temperature_2m,weather_code&timezone=auto`);
+        const weatherData = await weatherRes.json();
+        
+        const current = weatherData.current;
+        const code = current.weather_code;
+        const temp = Math.round(current.temperature_2m);
+        const desc = getWeatherDesc(code);
+        const icon = getWeatherIcon(code);
+        
+        document.getElementById('wTemp').textContent = temp + '°C';
+        document.getElementById('wDesc').textContent = desc;
+        document.getElementById('wLocation').textContent = `${name}, ${country}`;
+        
+        // Render forecast (next 5 days from hourly data)
+        renderForecast(weatherData.hourly);
+        
+        const now = new Date();
+        refreshEl.textContent = 'Updated: ' + now.toLocaleTimeString();
+        
+        // Auto-refresh every 10 minutes
+        clearInterval(refreshInterval);
+        refreshInterval = setInterval(() => {
+          fetchWeather();
+        }, 600000);
+        
+      } catch(err) {
+        errorEl.textContent = err.message || 'Failed to fetch weather';
+        document.getElementById('wTemp').textContent = '--°';
+        document.getElementById('wDesc').textContent = 'Error';
+        document.getElementById('wLocation').textContent = city;
       }
     }
-    renderForecast();
+    
+    function getWeatherDesc(code) {
+      const codes = {
+        0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+        45: 'Foggy', 48: 'Depositing rime fog',
+        51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
+        61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+        71: 'Slight snow', 73: 'Moderate snow', 75: 'Heavy snow',
+        80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
+        95: 'Thunderstorm', 96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail'
+      };
+      return codes[code] || 'Unknown';
+    }
+    
+    function getWeatherIcon(code) {
+      if(code === 0) return '☀️';
+      if(code <= 2) return '⛅';
+      if(code === 3) return '☁️';
+      if(code <= 48) return '🌫️';
+      if(code <= 55) return '💧';
+      if(code <= 65) return '🌧️';
+      if(code <= 75) return '❄️';
+      if(code <= 82) return '🌦️';
+      if(code >= 95) return '⛈️';
+      return '🌤️';
+    }
+    
+    function renderForecast(hourly) {
+      const container = document.getElementById('wForecast');
+      container.innerHTML = '';
+      
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const today = new Date().getDay();
+      
+      // Get noon temperatures for next 5 days
+      for(let i = 0; i < 5; i++) {
+        const dayIdx = (today + i) % 7;
+        const hourIdx = i * 24; // Approximate noon
+        const temp = hourly.temperature_2m[hourIdx] ? Math.round(hourly.temperature_2m[hourIdx]) : '--';
+        const code = hourly.weather_code[hourIdx] || 0;
+        const icon = getWeatherIcon(code);
+        
+        const el = document.createElement('div');
+        el.className = 'weather-day';
+        el.innerHTML = `
+          <div class="weather-day-name">${i === 0 ? 'Today' : days[dayIdx]}</div>
+          <div class="weather-day-icon">${icon}</div>
+          <div class="weather-day-temp">${temp}°</div>
+        `;
+        container.appendChild(el);
+      }
+    }
+    
+    // Load default city on start
+    document.getElementById('wCity').value = 'London';
+    fetchWeather();
   </script>
 </body>
 </html>
