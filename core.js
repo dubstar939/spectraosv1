@@ -540,6 +540,7 @@ class WindowManager {
 
     /**
      * Setup automatic widget content scaling using ResizeObserver
+     * Integrates with global SpectraScalingPolicy if available
      */
     setupWidgetScaling(win, id) {
         const content = win.querySelector('.wm-content');
@@ -574,9 +575,17 @@ class WindowManager {
 
     /**
      * Scale window content to fit the container
+     * Respects global SpectraScalingPolicy if defined
      */
     scaleWindowContent(content, containerWidth, containerHeight) {
         const widgets = content.querySelectorAll('.widget-content, canvas, iframe, .app-container');
+        
+        // Get policy settings (use global or defaults)
+        const policy = window.SpectraScalingPolicy || {
+            preserveAspect: true,
+            minScale: 0.25,
+            maxScale: 4
+        };
         
         widgets.forEach(widget => {
             // Skip if widget has its own scaling
@@ -593,10 +602,19 @@ class WindowManager {
 
             if (originalWidth === 0 || originalHeight === 0) return;
 
-            // Calculate scale preserving aspect ratio
-            const scaleX = containerWidth / originalWidth;
-            const scaleY = containerHeight / originalHeight;
-            const scale = Math.min(scaleX, scaleY, 1); // Don't upscale beyond 1x by default
+            // Calculate scale based on policy
+            let scaleX = containerWidth / originalWidth;
+            let scaleY = containerHeight / originalHeight;
+            
+            let scale;
+            if (policy.preserveAspect) {
+                scale = Math.min(scaleX, scaleY);
+            } else {
+                scale = scaleX; // Use X scale as default when not preserving aspect
+            }
+            
+            // Clamp to policy limits
+            scale = Math.max(policy.minScale, Math.min(scale, policy.maxScale));
 
             // Apply scaling based on widget type
             if (widget.tagName === 'CANVAS') {
