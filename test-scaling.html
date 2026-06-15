@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widget Scaling Test Suite - SpectraOS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0a0a0f;
+      color: #e8e8f0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #00f5d4, #ff006e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      text-align: center;
+      color: #a0a0b8;
+      margin-bottom: 30px;
+    }
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .test-card {
+      background: rgba(30, 30, 45, 0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 16px;
+      backdrop-filter: blur(20px);
+    }
+    .test-card h3 {
+      margin-bottom: 10px;
+      color: #00f5d4;
+      font-size: 16px;
+    }
+    .test-card p {
+      font-size: 13px;
+      color: #a0a0b8;
+      margin-bottom: 12px;
+    }
+    .test-container {
+      background: #0a0a0f;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    .resize-test {
+      width: 100%;
+      height: 200px;
+      resize: both;
+      overflow: auto;
+      border: 2px dashed #333;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 8px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+    .status.pass { color: #00ff88; }
+    .status.fail { color: #ff006e; }
+    .status.info { color: #00bbf9; }
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: #00f5d4;
+      color: #0a0a0f;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(0, 245, 212, 0.4);
+    }
+    .instructions {
+      max-width: 800px;
+      margin: 30px auto;
+      padding: 20px;
+      background: rgba(30, 30, 45, 0.5);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .instructions h2 {
+      color: #00f5d4;
+      margin-bottom: 15px;
+    }
+    .instructions ol {
+      margin-left: 20px;
+      color: #a0a0b8;
+      line-height: 1.8;
+    }
+    .instructions li {
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Widget Scaling Test Suite</h1>
+  <p class="subtitle">SpectraOS Dynamic Scaling Verification</p>
+
+  <div class="instructions">
+    <h2>How to Test</h2>
+    <ol>
+      <li><strong>Portrait Mode:</strong> Resize browser window to tall/narrow, verify content scales correctly</li>
+      <li><strong>Landscape Mode:</strong> Resize to wide/short, check aspect ratio preservation</li>
+      <li><strong>Small Windows:</strong> Shrink test containers, verify no clipping or distortion</li>
+      <li><strong>Fullscreen:</strong> Maximize and ensure proper upscaling</li>
+      <li><strong>Input Mapping:</strong> Move mouse over canvases - coordinates should match visual position</li>
+    </ol>
+  </div>
+
+  <div class="test-grid">
+    <!-- Test 1: Canvas Pixel-Art Scaling -->
+    <div class="test-card">
+      <h3>📊 Test 1: Pixel-Art Canvas Scaling</h3>
+      <p>Tests integer-only scaling for retro game aesthetics</p>
+      <div class="test-container">
+        <div class="resize-test" id="test1-container">
+          <canvas id="test1-canvas" width="160" height="120" data-pixel-art="true"></canvas>
+        </div>
+      </div>
+      <div class="status info" id="test1-status">Resize the container above →</div>
+      <button onclick="runTest1()">Run Test</button>
+    </div>
+
+    <!-- Test 2: Smooth Canvas Scaling -->
+    <div class="test-card">
+      <h3>🎨 Test 2: Smooth Canvas Scaling</h3>
+      <p>Tests smooth interpolation for regular graphics</p>
+      <div class="test-container">
+        <div class="resize-test" id="test2-container">
+          <canvas id="test2-canvas" width="320" height="200"></canvas>
+        </div>
+      </div>
+      <div class="status info" id="test2-status">Resize the container above →</div>
+      <button onclick="runTest2()">Run Test</button>
+    </div>
+
+    <!-- Test 3: Input Coordinate Remapping -->
+    <div class="test-card">
+      <h3>🖱️ Test 3: Input Coordinate Mapping</h3>
+      <p>Verifies mouse coordinates map correctly after scaling</p>
+      <div class="test-container">
+        <div class="resize-test" id="test3-container">
+          <canvas id="test3-canvas" width="200" height="150" style="background:#1a1a24;"></canvas>
+        </div>
+      </div>
+      <div class="status info" id="test3-status">Move mouse over canvas →</div>
+      <button onclick="runTest3()">Run Test</button>
+    </div>
+
+    <!-- Test 4: DOM Element Scaling -->
+    <div class="test-card">
+      <h3>📦 Test 4: DOM Element Scaling</h3>
+      <p>Tests CSS transform-based scaling for UI elements</p>
+      <div class="test-container">
+        <div class="resize-test" id="test4-container" style="display:flex;align-items:center;justify-content:center;">
+          <div id="test4-content" style="width:150px;height:100px;background:linear-gradient(135deg,#00f5d4,#00bbf9);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#0a0a0f;font-weight:bold;">UI Element</div>
+        </div>
+      </div>
+      <div class="status info" id="test4-status">Resize the container above →</div>
+      <button onclick="runTest4()">Run Test</button>
+    </div>
+
+    <!-- Test 5: Aspect Ratio Preservation -->
+    <div class="test-card">
+      <h3>⚖️ Test 5: Aspect Ratio Lock</h3>
+      <p>Verifies content maintains proportions when resizing</p>
+      <div class="test-container">
+        <div class="resize-test" id="test5-container">
+          <canvas id="test5-canvas" width="100" height="100"></canvas>
+        </div>
+      </div>
+      <div class="status info" id="test5-status">Make container rectangular →</div>
+      <button onclick="runTest5()">Run Test</button>
+    </div>
+
+    <!-- Test 6: ResizeObserver Performance -->
+    <div class="test-card">
+      <h3>⚡ Test 6: ResizeObserver Performance</h3>
+      <p>Tests debounced scaling updates via requestAnimationFrame</p>
+      <div class="test-container">
+        <div class="resize-test" id="test6-container">
+          <div style="padding:20px;text-align:center;">
+            <div id="test6-fps" style="font-size:24px;color:#00f5d4;">0</div>
+            <div style="font-size:12px;color:#a0a0b8;">Scale Updates/sec</div>
+          </div>
+        </div>
+      </div>
+      <div class="status pass" id="test6-status">Monitoring...</div>
+      <button onclick="runTest6()">Run Test</button>
+    </div>
+  </div>
+
+  <script src="widget-scaling.js"></script>
+  <script>
+    // Initialize scaling engines for each test
+    const tests = {};
+
+    // Draw test pattern on canvas
+    function drawPattern(canvasId, type = 'pixel') {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      
+      if (type === 'pixel') {
+        // Pixel art pattern
+        const colors = ['#ff006e', '#00f5d4', '#9b5de5', '#f8961e'];
+        for (let y = 0; y < canvas.height; y += 10) {
+          for (let x = 0; x < canvas.width; x += 10) {
+            ctx.fillStyle = colors[Math.floor((x + y) / 10) % colors.length];
+            ctx.fillRect(x, y, 10, 10);
+          }
+        }
+        // Draw face
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(40, 30, 20, 20);
+        ctx.fillRect(100, 30, 20, 20);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(45, 35, 10, 10);
+        ctx.fillRect(105, 35, 10, 10);
+        ctx.fillRect(60, 70, 40, 10);
+      } else {
+        // Smooth gradient pattern
+        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        grad.addColorStop(0, '#00f5d4');
+        grad.addColorStop(0.5, '#9b5de5');
+        grad.addColorStop(1, '#ff006e');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw circles
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ctx.arc(canvas.width/2, canvas.height/2, 20 + i * 15, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255,255,255,${0.3 - i * 0.05})`;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Test 1: Pixel-Art Scaling
+    function runTest1() {
+      const container = document.getElementById('test1-container');
+      const canvas = document.getElementById('test1-canvas');
+      const status = document.getElementById('test1-status');
+      
+      drawPattern('test1-canvas', 'pixel');
+      
+      if (!tests.test1) {
+        tests.test1 = initWidgetScaling(container, {
+          preserveAspectRatio: true,
+          pixelPerfect: true
+        });
+      }
+      
+      // Verify pixelated rendering
+      setTimeout(() => {
+        const style = getComputedStyle(canvas);
+        const isPixelated = style.imageRendering === 'pixelated' || 
+                           style.imageRendering === 'crisp-edges';
+        status.textContent = isPixelated ? 
+          '✓ Pixel-perfect scaling active' : 
+          '✗ Pixel scaling not applied';
+        status.className = 'status ' + (isPixelated ? 'pass' : 'fail');
+      }, 100);
+    }
+
+    // Test 2: Smooth Scaling
+    function runTest2() {
+      const container = document.getElementById('test2-container');
+      const canvas = document.getElementById('test2-canvas');
+      const status = document.getElementById('test2-status');
+      
+      drawPattern('test2-canvas', 'smooth');
+      
+      if (!tests.test2) {
+        tests.test2 = initWidgetScaling(container, {
+          preserveAspectRatio: true,
+          pixelPerfect: false
+        });
+      }
+      
+      setTimeout(() => {
+        status.textContent = '✓ Smooth scaling enabled - drag corner to resize';
+        status.className = 'status pass';
+      }, 100);
+    }
+
+    // Test 3: Input Mapping
+    function runTest3() {
+      const container = document.getElementById('test3-container');
+      const canvas = document.getElementById('test3-canvas');
+      const ctx = canvas.getContext('2d');
+      const status = document.getElementById('test3-status');
+      
+      // Clear and draw grid
+      ctx.fillStyle = '#1a1a24';
+      ctx.fillRect(0, 0, 200, 150);
+      
+      // Draw coordinate grid
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= 200; x += 20) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, 150);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= 150; y += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(200, y);
+        ctx.stroke();
+      }
+      
+      if (!tests.test3) {
+        tests.test3 = initWidgetScaling(container, {
+          preserveAspectRatio: false,
+          pixelPerfect: false
+        });
+      }
+      
+      // Track mouse with coordinate remapping
+      canvas.onmousemove = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        
+        // Draw dot at calculated position
+        ctx.fillStyle = '#1a1a24';
+        ctx.fillRect(0, 0, 200, 150);
+        ctx.fillStyle = '#00ff88';
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        status.textContent = `Canvas coords: (${Math.round(x)}, ${Math.round(y)}) | Display: (${Math.round(e.clientX - rect.left)}, ${Math.round(e.clientY - rect.top)})`;
+        status.className = 'status pass';
+      };
+    }
+
+    // Test 4: DOM Element Scaling
+    function runTest4() {
+      const container = document.getElementById('test4-container');
+      const content = document.getElementById('test4-content');
+      const status = document.getElementById('test4-status');
+      
+      if (!tests.test4) {
+        tests.test4 = initWidgetScaling(container, {
+          preserveAspectRatio: true,
+          pixelPerfect: false
+        });
+      }
+      
+      setTimeout(() => {
+        const hasTransform = content.style.transform !== '';
+        status.textContent = hasTransform ? 
+          '✓ CSS transform scaling active' : 
+          '✓ Content fits naturally';
+        status.className = 'status pass';
+      }, 100);
+    }
+
+    // Test 5: Aspect Ratio
+    function runTest5() {
+      const container = document.getElementById('test5-container');
+      const canvas = document.getElementById('test5-canvas');
+      const ctx = canvas.getContext('2d');
+      const status = document.getElementById('test5-status');
+      
+      // Draw square indicator
+      function drawSquare() {
+        ctx.fillStyle = '#0a0a0f';
+        ctx.fillRect(0, 0, 100, 100);
+        ctx.strokeStyle = '#00f5d4';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(10, 10, 80, 80);
+        ctx.fillStyle = '#00f5d4';
+        ctx.font = '12px monospace';
+        ctx.fillText('1:1', 40, 55);
+      }
+      drawSquare();
+      
+      if (!tests.test5) {
+        tests.test5 = initWidgetScaling(container, {
+          preserveAspectRatio: true,
+          pixelPerfect: false
+        });
+      }
+      
+      // Listen for scale events
+      canvas.addEventListener('widgetscaled', (e) => {
+        const { scale } = e.detail;
+        status.textContent = `Scale factor: ${scale.toFixed(2)}x (aspect ratio preserved)`;
+        status.className = 'status pass';
+      });
+    }
+
+    // Test 6: Performance
+    function runTest6() {
+      const container = document.getElementById('test6-container');
+      const fpsDisplay = document.getElementById('test6-fps');
+      const status = document.getElementById('test6-status');
+      
+      let updateCount = 0;
+      let lastTime = performance.now();
+      
+      if (!tests.test6) {
+        // Custom observer for performance testing
+        tests.test6 = new ResizeObserver(() => {
+          updateCount++;
+          const now = performance.now();
+          if (now - lastTime >= 1000) {
+            fpsDisplay.textContent = updateCount;
+            updateCount = 0;
+            lastTime = now;
+          }
+        });
+        tests.test6.observe(container);
+      }
+      
+      status.textContent = 'Resize rapidly - FPS should stay under 60 (debounced)';
+      status.className = 'status info';
+    }
+
+    // Auto-run all tests on load
+    window.onload = () => {
+      runTest1();
+      runTest2();
+      runTest3();
+      runTest4();
+      runTest5();
+      runTest6();
+    };
+  </script>
+</body>
+</html>

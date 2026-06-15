@@ -12,14 +12,14 @@
     .break-body{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;}
   </style>
 </head>
-<body>
+<body data-pixel-art="true">
   <div class="window" style="width:420px;height:420px;">
     <div class="titlebar"><div class="title">🧱 Breakout</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
     <div class="winbody" style="padding:0;">
       <div class="break-container">
         <div class="break-info">Score: <span id="breakScore">0</span> | Lives: <span id="breakLives">3</span></div>
         <div class="break-body">
-          <canvas id="break-canvas" width="380" height="280"></canvas>
+          <canvas id="break-canvas" width="380" height="280" data-pixel-art="true"></canvas>
         </div>
         <div class="break-controls">← → Move • Click to launch</div>
         <div style="text-align:center;margin-top:5px;padding:10px;"><button class="btn" onclick="initBreak()">New Game</button></div>
@@ -30,7 +30,48 @@
     const c=document.getElementById('break-canvas'),ctx=c.getContext('2d');
     let paddleX=170,ballX=190,ballY=250,ballDX=3,ballDY=-3,score=0,lives=3,bricks=[],gameRunning=false;
     const BRICK_ROWS=5,BRICK_COLS=8,BRICK_W=42,BRICK_H=15,BRICK_PAD=4,PADDLE_W=80,PADDLE_H=10,BALL=8;
-    function initBreak(){paddleX=170;ballX=190;ballY=250;ballDX=3;ballDY=-3;score=0;lives=3;gameRunning=false;bricks=[];for(let r=0;r<BRICK_ROWS;r++)for(let c=0;c<BRICK_COLS;c++)bricks.push({x:c*(BRICK_W+BRICK_PAD)+20,y:r*(BRICK_H+BRICK_PAD)+30,w:BRICK_W,h:BRICK_H,color:['#ff0055','#ffcc00','#00ff88','#00ccff','#cc00ff'][r],active:true});document.getElementById('breakScore').textContent='0';document.getElementById('breakLives').textContent='3';drawBreak();}
+    
+    // ═══════════════════════════════════════════
+    // SCALING SUPPORT - Remap mouse coordinates
+    // ═══════════════════════════════════════════
+    function getCanvasMouseX(e) {
+        const rect = c.getBoundingClientRect();
+        const scaleX = c.width / rect.width;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        return (clientX - rect.left) * scaleX;
+    }
+    
+    // Handle paddle movement with scaled coordinates
+    function updatePaddleFromMouse(clientX) {
+        const rect = c.getBoundingClientRect();
+        const scaleX = c.width / rect.width;
+        const canvasX = (clientX - rect.left) * scaleX;
+        paddleX = canvasX - PADDLE_W / 2;
+        paddleX = Math.max(0, Math.min(380 - PADDLE_W, paddleX));
+    }
+    
+    // Mouse/touch input with proper coordinate remapping
+    c.addEventListener('mousemove', (e) => {
+        if (gameRunning) {
+            updatePaddleFromMouse(e.touches ? e.touches[0].clientX : e.clientX);
+        }
+    });
+    
+    c.addEventListener('touchmove', (e) => {
+        if (gameRunning && e.touches.length > 0) {
+            e.preventDefault();
+            updatePaddleFromMouse(e.touches[0].clientX);
+        }
+    }, { passive: false });
+    
+    // Listen for resize events from the scaling engine
+    c.addEventListener('canvasresized', (e) => {
+        console.log('Breakout canvas resized:', e.detail);
+        // Redraw to ensure proper rendering after scale
+        if (!gameRunning) drawBreak();
+    });
+    
+    function initBreak(){paddleX=170;ballX=190;ballY=250;ballDX=3;ballDY=-3;score=0;lives=3;gameRunning=false;bricks=[];for(let r=0;r<BRICK_ROWS;r++)for(let col=0;col<BRICK_COLS;col++)bricks.push({x:col*(BRICK_W+BRICK_PAD)+20,y:r*(BRICK_H+BRICK_PAD)+30,w:BRICK_W,h:BRICK_H,color:['#ff0055','#ffcc00','#00ff88','#00ccff','#cc00ff'][r],active:true});document.getElementById('breakScore').textContent='0';document.getElementById('breakLives').textContent='3';drawBreak();}
     function drawBreak(){ctx.fillStyle='#0a0a0f';ctx.fillRect(0,0,380,280);bricks.forEach(b=>{if(b.active){ctx.fillStyle=b.color;ctx.fillRect(b.x,b.y,b.w,b.h);ctx.strokeStyle='rgba(255,255,255,.2)';ctx.strokeRect(b.x,b.y,b.w,b.h);}});ctx.fillStyle='#00ff88';ctx.fillRect(paddleX,260,PADDLE_W,PADDLE_H);ctx.fillStyle='#ffcc00';ctx.beginPath();ctx.arc(ballX,ballY,BALL/2,0,Math.PI*2);ctx.fill();}
     function updateBreak(){if(!gameRunning)return;ballX+=ballDX;ballY+=ballDY;if(ballX<=0||ballX>=380)ballDX=-ballDX;if(ballY<=0)ballDY=-ballDY;if(ballY>=260&&ballX>=paddleX&&ballX<=paddleX+PADDLE_W){ballDY=-ballDY;ballY=260;}if(ballY>280){lives--;document.getElementById('breakLives').textContent=lives;if(lives<=0){gameRunning=false;alert('Game Over! Score: '+score);return;}ballX=190;ballY=250;ballDX=3*(Math.random()>.5?1:-1);ballDY=-3;}bricks.forEach(b=>{if(b.active&&ballX>=b.x&&ballX<=b.x+b.w&&ballY>=b.y&&ballY<=b.y+b.h){b.active=false;ballDY=-ballDY;score+=10;document.getElementById('breakScore').textContent=score;if(bricks.every(b=>!b.active)){gameRunning=false;alert('You Win! Score: '+score);}}});drawBreak();requestAnimationFrame(updateBreak);}
     document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')paddleX=Math.max(0,paddleX-20);if(e.key==='ArrowRight')paddleX=Math.min(300,paddleX+20);});

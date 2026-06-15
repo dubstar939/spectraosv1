@@ -12,14 +12,14 @@
     .pong-body{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;}
   </style>
 </head>
-<body>
+<body data-pixel-art="true">
   <div class="window" style="width:420px;height:380px;">
     <div class="titlebar"><div class="title">🏓 Pong</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
     <div class="winbody" style="padding:0;">
       <div class="pong-container">
         <div class="pong-score"><span id="p1Score">0</span> — <span id="p2Score">0</span></div>
         <div class="pong-body">
-          <canvas id="pong-canvas" width="380" height="240"></canvas>
+          <canvas id="pong-canvas" width="380" height="240" data-pixel-art="true"></canvas>
         </div>
         <div class="pong-controls">W/S or ↑/↓ to move • Click to start</div>
         <div style="text-align:center;margin-top:5px;padding:10px;"><button class="btn" onclick="initPong()">New Game</button></div>
@@ -30,6 +30,46 @@
     const c=document.getElementById('pong-canvas'),ctx=c.getContext('2d');
     let p1Y=80,p2Y=80,ballX=190,ballY=120,ballDX=3,ballDY=2,p1Score=0,p2Score=0,gameRunning=false;
     const PADDLE_H=60,PADDLE_W=8,BALL=8;
+    
+    // ═══════════════════════════════════════════
+    // SCALING SUPPORT - Remap mouse coordinates
+    // ═══════════════════════════════════════════
+    function getCanvasMouseY(e) {
+        const rect = c.getBoundingClientRect();
+        const scaleY = c.height / rect.height;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return (clientY - rect.top) * scaleY;
+    }
+    
+    // Handle paddle movement with scaled coordinates
+    function updatePaddleFromMouse(clientY) {
+        const rect = c.getBoundingClientRect();
+        const scaleY = c.height / rect.height;
+        const canvasY = (clientY - rect.top) * scaleY;
+        p1Y = canvasY - PADDLE_H / 2;
+        p1Y = Math.max(0, Math.min(240 - PADDLE_H, p1Y));
+    }
+    
+    // Mouse/touch input with proper coordinate remapping
+    c.addEventListener('mousemove', (e) => {
+        if (gameRunning) {
+            updatePaddleFromMouse(e.touches ? e.touches[0].clientY : e.clientY);
+        }
+    });
+    
+    c.addEventListener('touchmove', (e) => {
+        if (gameRunning && e.touches.length > 0) {
+            e.preventDefault();
+            updatePaddleFromMouse(e.touches[0].clientY);
+        }
+    }, { passive: false });
+    
+    // Listen for resize events from the scaling engine
+    c.addEventListener('canvasresized', (e) => {
+        console.log('Pong canvas resized:', e.detail);
+        if (!gameRunning) drawPong();
+    });
+    
     function initPong(){p1Y=80;p2Y=80;ballX=190;ballY=120;ballDX=3*(Math.random()>.5?1:-1);ballDY=2*(Math.random()>.5?1:-1);p1Score=0;p2Score=0;gameRunning=false;updateScore();drawPong();}
     function updateScore(){document.getElementById('p1Score').textContent=p1Score;document.getElementById('p2Score').textContent=p2Score;}
     function drawPong(){ctx.fillStyle='#0a0a0f';ctx.fillRect(0,0,380,240);ctx.fillStyle='rgba(255,255,255,.1)';for(let y=0;y<240;y+=20)ctx.fillRect(189,y,2,10);ctx.fillStyle='#00ff88';ctx.fillRect(10,p1Y,PADDLE_W,PADDLE_H);ctx.fillStyle='#00ccff';ctx.fillRect(362,p2Y,PADDLE_W,PADDLE_H);ctx.fillStyle='#ffcc00';ctx.beginPath();ctx.arc(ballX,ballY,BALL/2,0,Math.PI*2);ctx.fill();}

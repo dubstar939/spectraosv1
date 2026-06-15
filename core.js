@@ -530,6 +530,154 @@ class WindowManager {
                 win.style.transition = '';
             }
         });
+
+        // ═══════════════════════════════════════════
+        // WIDGET SCALING ENGINE INTEGRATION
+        // Add ResizeObserver for automatic content scaling
+        // ═══════════════════════════════════════════
+        this.setupWidgetScaling(win, id);
+    }
+
+    /**
+     * Setup automatic widget content scaling using ResizeObserver
+     */
+    setupWidgetScaling(win, id) {
+        const content = win.querySelector('.wm-content');
+        if (!content) return;
+
+        // Store scaling state on window object
+        win._scalingState = {
+            observer: null,
+            rafId: null,
+            widgets: []
+        };
+
+        // Create ResizeObserver for content container
+        win._scalingState.observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                
+                // Debounce with requestAnimationFrame
+                if (win._scalingState.rafId) {
+                    cancelAnimationFrame(win._scalingState.rafId);
+                }
+
+                win._scalingState.rafId = requestAnimationFrame(() => {
+                    // Scale all widgets inside this window
+                    this.scaleWindowContent(content, width, height);
+                });
+            }
+        });
+
+        win._scalingState.observer.observe(content);
+    }
+
+    /**
+     * Scale window content to fit the container
+     */
+    scaleWindowContent(content, containerWidth, containerHeight) {
+        const widgets = content.querySelectorAll('.widget-content, canvas, iframe, .app-container');
+        
+        widgets.forEach(widget => {
+            // Skip if widget has its own scaling
+            if (widget.dataset.hasScaling) return;
+
+            const originalWidth = widget.dataset.originalWidth || widget.offsetWidth || widget.width;
+            const originalHeight = widget.dataset.originalHeight || widget.offsetHeight || widget.height;
+
+            // Store original dimensions
+            if (!widget.dataset.originalWidth) {
+                widget.dataset.originalWidth = originalWidth;
+                widget.dataset.originalHeight = originalHeight;
+            }
+
+            if (originalWidth === 0 || originalHeight === 0) return;
+
+            // Calculate scale preserving aspect ratio
+            const scaleX = containerWidth / originalWidth;
+            const scaleY = containerHeight / originalHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // Don't upscale beyond 1x by default
+
+            // Apply scaling based on widget type
+            if (widget.tagName === 'CANVAS') {
+                this.scaleCanvas(widget, scale, originalWidth, originalHeight);
+            } else if (widget.tagName === 'IFRAME') {
+                this.scaleIframe(widget, scale, containerWidth, containerHeight);
+            } else {
+                this.scaleElement(widget, scale, originalWidth, originalHeight);
+            }
+        });
+    }
+
+    /**
+     * Scale canvas element with pixel-perfect option
+     */
+    scaleCanvas(canvas, scale, originalWidth, originalHeight) {
+        // Check if this is a pixel-art canvas (games, retro apps)
+        const isPixelArt = canvas.dataset.pixelArt === 'true' || 
+                          canvas.closest('[data-pixel-art="true"]');
+
+        if (isPixelArt) {
+            // Pixel-perfect integer scaling
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.imageSmoothingEnabled = false;
+                ctx.mozImageSmoothingEnabled = false;
+                ctx.webkitImageSmoothingEnabled = false;
+                ctx.msImageSmoothingEnabled = false;
+            }
+            canvas.style.imageRendering = 'pixelated';
+            canvas.style.imageRendering = 'crisp-edges';
+
+            // Integer scale only
+            const intScale = Math.max(1, Math.floor(scale));
+            canvas.style.width = `${originalWidth * intScale}px`;
+            canvas.style.height = `${originalHeight * intScale}px`;
+        } else {
+            // Smooth scaling for regular graphics
+            canvas.style.imageRendering = 'auto';
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+        }
+
+        // Dispatch scale event for game logic to listen to
+        canvas.dispatchEvent(new CustomEvent('canvasresized', {
+            detail: { scale, width: canvas.offsetWidth, height: canvas.offsetHeight }
+        }));
+    }
+
+    /**
+     * Scale iframe to fit container
+     */
+    scaleIframe(iframe, scale, containerWidth, containerHeight) {
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+    }
+
+    /**
+     * Scale generic element using CSS transform
+     */
+    scaleElement(element, scale, originalWidth, originalHeight) {
+        element.style.transformOrigin = 'top left';
+        element.style.transform = `scale(${scale})`;
+        element.style.width = `${originalWidth * scale}px`;
+        element.style.height = `${originalHeight * scale}px`;
+    }
+
+    /**
+     * Cleanup scaling resources when window closes
+     */
+    cleanupWidgetScaling(win) {
+        if (win._scalingState) {
+            if (win._scalingState.observer) {
+                win._scalingState.observer.disconnect();
+            }
+            if (win._scalingState.rafId) {
+                cancelAnimationFrame(win._scalingState.rafId);
+            }
+            win._scalingState = null;
+        }
     }
 
     focusWindow(id) {
@@ -572,6 +720,9 @@ class WindowManager {
         if (win.element._cleanupListeners) {
             win.element._cleanupListeners();
         }
+        
+        // Cleanup widget scaling resources
+        this.cleanupWidgetScaling(win.element);
         
         win.element.style.animation = 'none';
         win.element.style.transition = 'opacity 0.2s, transform 0.2s';
