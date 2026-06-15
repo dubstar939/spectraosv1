@@ -1,218 +1,189 @@
-# Widget Scaling Engine - Integration Guide
+# Widget Scaling System — SpectraOS
 
 ## Overview
 
-The Widget Scaling Engine provides automatic, dynamic scaling for all widget content in SpectraOS. When users resize windows, the content inside automatically scales to fit while preserving aspect ratio and maintaining crisp pixel-art rendering.
+A production-grade, bulletproof widget scaling system for SpectraOS that ensures all resizable widgets (games, apps, tools) scale smoothly and correctly with perfect visual fidelity and accurate input mapping.
 
 ## Features
 
-- **Automatic ResizeObserver**: Detects window size changes in real-time
-- **Aspect Ratio Preservation**: Content scales proportionally by default
-- **Pixel-Perfect Scaling**: Integer-only scaling for retro games and pixel art
-- **Input Coordinate Remapping**: Mouse/touch coordinates correctly map to scaled canvas
-- **Universal Support**: Works with canvas, iframes, and DOM elements
-- **Memory Efficient**: Automatic cleanup when windows close
+✅ **Dynamic Scaling** — Content automatically resizes when widget frame changes  
+✅ **Aspect Ratio Preservation** — Enabled by default, can be disabled per-widget  
+✅ **Pixel-Perfect Scaling** — Integer-only scaling prevents blur on retro games  
+✅ **Upscaling & Downscaling** — Works at any size from minimum to fullscreen  
+✅ **Input Remapping** — Mouse/touch coordinates correctly map to scaled canvas  
+✅ **Universal Support** — Canvas, iframes, and DOM elements all supported  
+✅ **Automatic Cleanup** — No memory leaks when windows close  
+✅ **Performance Optimized** — Debounced via requestAnimationFrame  
+✅ **Global Policy** — System-wide scaling configuration  
 
-## Files Modified/Created
+---
 
-1. `/workspace/widget-scaling.js` - Standalone scaling module (reusable)
-2. `/workspace/core.js` - Integrated scaling into WindowManager
-3. `/workspace/apps/app24_breakout.html` - Example game with scaling support
-4. `/workspace/apps/app23_pong.html` - Example game with scaling support
-
-## How It Works
-
-### 1. Window Manager Integration (core.js)
-
-The WindowManager now includes:
+## Global Scaling Policy
 
 ```javascript
-// setupResize() now calls setupWidgetScaling()
-setupResize(win, id) {
-    // ... existing resize code ...
-    this.setupWidgetScaling(win, id);
-}
-
-// Automatically observes content container size changes
-setupWidgetScaling(win, id) {
-    const content = win.querySelector('.wm-content');
-    win._scalingState.observer = new ResizeObserver((entries) => {
-        // Debounced scaling update
-        requestAnimationFrame(() => {
-            this.scaleWindowContent(content, width, height);
-        });
-    });
-    win._scalingState.observer.observe(content);
-}
+window.SpectraScalingPolicy = {
+  preserveAspect: true,      // Maintain aspect ratio
+  pixelArtDefault: false,    // Default pixel-art mode
+  minScale: 0.25,            // Minimum scale factor
+  maxScale: 4,               // Maximum scale factor
+  allowFractional: true,     // Allow fractional scales
+  interpolation: 'smooth'    // 'smooth', 'nearest', 'none'
+};
 ```
 
-### 2. Scaling Types
+All widgets respect this policy unless they override it locally.
 
-**Canvas Elements:**
-- Pixel-art canvases use integer scaling with `imageRendering: 'pixelated'`
-- Regular canvases scale smoothly to fill available space
-- Dispatches `canvasresized` event for game logic updates
+---
 
-**Iframes:**
-- Scale to 100% of container
-- Border removed for seamless appearance
+## Files Modified
 
-**DOM Elements:**
-- CSS transform-based scaling
-- Preserves aspect ratio
+| File | Purpose |
+|------|---------|
+| `widget-scaling.js` | Reusable scaling engine module |
+| `core.js` | WindowManager integration |
+| `app23_pong.html` | Example game with scaling support |
+| `app24_breakout.html` | Example game with scaling support |
+| `test-scaling.html` | Comprehensive test suite (8 tests) |
 
-### 3. Input Mapping
+---
 
-For games that need mouse/touch input:
-
-```javascript
-// Get correct canvas coordinates regardless of scale
-function getCanvasMouseX(e) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    return (clientX - rect.left) * scaleX;
-}
-```
-
-## Integration Instructions
-
-### For Existing Widgets/Games
-
-**Step 1: Add pixel-art marker (if applicable)**
-
-```html
-<body data-pixel-art="true">
-  <canvas data-pixel-art="true" ...>
-```
-
-**Step 2: Add coordinate remapping for mouse/touch**
-
-```javascript
-// For horizontal movement (like Breakout paddle)
-function updatePaddleFromMouse(clientX) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.height;
-    const canvasX = (clientX - rect.left) * scaleX;
-    // Use canvasX for game logic
-}
-
-canvas.addEventListener('mousemove', (e) => {
-    updatePaddleFromMouse(e.clientX);
-});
-
-canvas.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    updatePaddleFromMouse(e.touches[0].clientX);
-}, { passive: false });
-```
-
-**Step 3: Listen for resize events (optional)**
-
-```javascript
-canvas.addEventListener('canvasresized', (e) => {
-    console.log('New scale:', e.detail.scale);
-    // Redraw or adjust game logic if needed
-});
-```
+## Integration Guide
 
 ### For New Widgets
 
-**Option A: Use the standalone module**
+1. **Add data attributes** to mark pixel-art content:
+   ```html
+   <canvas data-pixel-art="true" width="320" height="240"></canvas>
+   ```
 
-```html
-<script src="widget-scaling.js"></script>
-<script>
-    const scaler = initWidgetScaling(container, {
-        preserveAspectRatio: true,
-        pixelPerfect: true
-    });
-</script>
-```
+2. **Use coordinate remapping** for mouse/touch input:
+   ```javascript
+   function getCanvasMouse(e) {
+       const rect = canvas.getBoundingClientRect();
+       const scaleX = canvas.width / rect.width;
+       const scaleY = canvas.height / rect.height;
+       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+       return {
+           x: (clientX - rect.left) * scaleX,
+           y: (clientY - rect.top) * scaleY
+       };
+   }
+   ```
 
-**Option B: Rely on automatic WindowManager scaling**
+3. **Listen for resize events**:
+   ```javascript
+   canvas.addEventListener('canvasresized', (e) => {
+       const { scale, width, height } = e.detail;
+       // Adjust game logic if needed
+   });
+   ```
 
-No additional code needed! The WindowManager automatically scales content.
+### For Existing Widgets
 
-## Testing Scenarios
+The WindowManager automatically applies scaling to all canvas, iframe, and DOM elements. No code changes required unless you need custom behavior.
 
-### Portrait Mode
-1. Open any game app (Breakout, Pong)
-2. Resize window to tall, narrow dimensions
-3. Verify content scales without distortion
-4. Test mouse/touch input accuracy
-
-### Landscape Mode
-1. Open game app
-2. Resize to wide, short dimensions
-3. Verify aspect ratio is preserved
-4. Check for clipping or overflow
-
-### Small Windows
-1. Resize window to minimum size (280x180)
-2. Content should scale down appropriately
-3. Pixel-art games should use integer scaling only
-4. Input should still work correctly
-
-### Fullscreen/Maximized
-1. Maximize window
-2. Content should scale up to fill space
-3. No blurring on pixel-art content
-4. Games remain playable with correct input mapping
+---
 
 ## API Reference
 
-### WindowManager Methods
+### WidgetScalingEngine
 
-| Method | Description |
-|--------|-------------|
-| `setupWidgetScaling(win, id)` | Initialize scaling observer for window |
-| `scaleWindowContent(content, w, h)` | Scale all widgets in container |
-| `scaleCanvas(canvas, scale, origW, origH)` | Apply canvas-specific scaling |
-| `cleanupWidgetScaling(win)` | Remove observers and free resources |
+```javascript
+// Get singleton instance
+const engine = window.__widgetScalingEngine || new WidgetScalingEngine();
 
-### Custom Events
+// Attach scaling to a container
+const controller = engine.attach(container, {
+    preserveAspect: true,
+    pixelArtDefault: false,
+    minScale: 0.1,
+    maxScale: 8
+});
 
-| Event | Target | Detail |
-|-------|--------|--------|
-| `canvasresized` | Canvas elements | `{ scale, width, height }` |
-| `widgetscaled` | Container | `{ scale, width, height }` |
+// Update options
+controller.setOptions({ preserveAspect: false });
 
-### Data Attributes
+// Get current scale
+const scale = controller.getScale();
 
-| Attribute | Element | Effect |
-|-----------|---------|--------|
-| `data-pixel-art="true"` | body, canvas | Enables integer-only scaling |
-| `data-original-width` | Any widget | Stores original dimension |
-| `data-has-scaling` | Any widget | Skips auto-scaling |
+// Force recalculation
+controller.forceUpdate();
 
-## Troubleshooting
+// Cleanup
+controller.destroy();
+```
 
-**Content not scaling:**
-- Ensure widget is inside `.wm-content` container
-- Check browser supports ResizeObserver (modern browsers only)
-- Verify widget has defined dimensions
+### Helper Function
 
-**Input misaligned:**
-- Use `getBoundingClientRect()` for coordinate remapping
-- Account for canvas internal resolution vs display size
-- Test both mouse and touch events
+```javascript
+// Simple initialization
+const controller = initWidgetScaling(container, options);
+```
 
-**Blurry pixel art:**
-- Add `data-pixel-art="true"` to canvas
-- Ensure `imageRendering: 'pixelated'` is applied
-- Check integer scaling is being used
+---
 
-**Performance issues:**
-- Scaling is debounced via requestAnimationFrame
-- Large numbers of widgets may need optimization
-- Cleanup is automatic on window close
+## Test Suite
 
-## Browser Compatibility
+Open `test-scaling.html` in a browser to run 8 automated tests:
 
-- Chrome 64+ ✓
-- Firefox 69+ ✓
-- Safari 13.1+ ✓
-- Edge 79+ ✓
+| Test | Description |
+|------|-------------|
+| 1 | Pixel-Art Canvas Scaling |
+| 2 | Smooth Canvas Scaling |
+| 3 | Input Coordinate Mapping |
+| 4 | DOM Element Scaling |
+| 5 | Aspect Ratio Preservation |
+| 6 | ResizeObserver Performance |
+| 7 | Global Policy Override |
+| 8 | Extreme Resize Stress Test |
 
-ResizeObserver is supported in all modern browsers. For older browsers, consider polyfill.
+---
+
+## Edge Cases Handled
+
+| Scenario | Behavior |
+|----------|----------|
+| Widget smaller than original | Scales down to minScale limit |
+| Widget extremely wide/tall | Preserves aspect or stretches based on policy |
+| Fullscreen mode | Upscales to fit, respects maxScale |
+| Rapid resizing | Debounced via requestAnimationFrame |
+| Touch input | Coordinates remapped correctly |
+| Multi-monitor DPI | Uses CSS pixels, works across displays |
+| Canvas with no context | Gracefully skips pixel-perfect setup |
+
+---
+
+## Before/After Comparison
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Canvas scaling | Fixed size, clipped | Dynamic, fits container |
+| Pixel art | Blurry when scaled | Crisp integer scaling |
+| Mouse input | Misaligned clicks | Perfect coordinate mapping |
+| Resize performance | Janky, multiple recalcs | Smooth, debounced |
+| Policy control | None | Global + per-widget |
+
+---
+
+## Remaining Limitations
+
+1. **Iframe content** — Cross-origin iframes cannot have their internal content scaled; only the iframe element itself scales
+2. **Video elements** — May have browser-specific scaling behavior
+3. **WebGL contexts** — Require manual canvas resize for proper resolution scaling
+
+---
+
+## Recommendations for Future Improvements
+
+1. **Add WebGL support** — Detect WebGL canvases and handle resolution scaling
+2. **DPI awareness** — Add devicePixelRatio handling for HiDPI displays
+3. **Animation during resize** — Add smooth transitions between scale states
+4. **Layout presets** — Allow widgets to define preferred aspect ratios
+5. **Touch gesture support** — Pinch-to-zoom for touch-enabled devices
+
+---
+
+## License
+
+Part of SpectraOS desktop environment.

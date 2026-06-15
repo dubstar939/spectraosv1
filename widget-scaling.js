@@ -1,31 +1,68 @@
 /**
  * ═══════════════════════════════════════════
- * WIDGET SCALING ENGINE
+ * WIDGET SCALING ENGINE v2.0
  * Dynamic scaling system for resizable widgets
+ * Production-grade with global policy support
  * ═══════════════════════════════════════════
  */
+
+// ═══════════════════════════════════════════
+// GLOBAL SCALING POLICY
+ // ═══════════════════════════════════════════
+window.SpectraScalingPolicy = {
+    preserveAspect: true,
+    pixelArtDefault: false,
+    minScale: 0.25,
+    maxScale: 4,
+    allowFractional: true,
+    interpolation: 'smooth' // 'smooth', 'nearest', 'none'
+};
 
 class WidgetScalingEngine {
     constructor() {
         this.widgets = new Map();
-        this.defaultOptions = {
-            preserveAspectRatio: true,
-            pixelPerfect: false,
-            minScale: 0.1,
-            maxScale: 4.0,
-            interpolation: 'smooth' // 'smooth', 'nearest', 'none'
-        };
+        this.resizeObserver = null;
+        this.initialized = false;
+    }
+
+    /**
+     * Initialize the global scaling engine
+     */
+    init() {
+        if (this.initialized) return;
+        
+        // Create shared ResizeObserver for efficiency
+        this.resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const container = entry.target;
+                const widgetState = this.widgets.get(container);
+                if (!widgetState) continue;
+
+                // Debounce with requestAnimationFrame
+                if (widgetState.rafId) cancelAnimationFrame(widgetState.rafId);
+                
+                widgetState.rafId = requestAnimationFrame(() => {
+                    this.applyScale(widgetState);
+                });
+            }
+        });
+        
+        this.initialized = true;
     }
 
     /**
      * Initialize scaling for a widget container
      * @param {HTMLElement} container - The widget content container
-     * @param {Object} options - Scaling options
+     * @param {Object} options - Scaling options (overrides global policy)
      * @returns {Object} Scaling controller
      */
-    init(container, options = {}) {
-        const config = { ...this.defaultOptions, ...options };
-        const id = `scale-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    attach(container, options = {}) {
+        if (!this.initialized) this.init();
+        
+        const config = { 
+            ...window.SpectraScalingPolicy,
+            ...options 
+        };
         
         // Find canvas or content element
         const canvas = container.querySelector('canvas');
@@ -41,7 +78,6 @@ class WidgetScalingEngine {
         const originalHeight = content.offsetHeight || content.height || 0;
         
         const state = {
-            id,
             container,
             content,
             canvas,
@@ -51,12 +87,14 @@ class WidgetScalingEngine {
             currentWidth: originalWidth,
             currentHeight: originalHeight,
             scale: 1,
-            observer: null,
-            rafId: null
+            scaleX: 1,
+            scaleY: 1,
+            rafId: null,
+            inputListeners: []
         };
 
-        // Setup ResizeObserver
-        this.setupResizeObserver(state);
+        // Start observing
+        this.resizeObserver.observe(container);
         
         // Setup input mapping if canvas exists
         if (canvas) {
@@ -66,12 +104,11 @@ class WidgetScalingEngine {
         // Apply initial scaling
         this.applyScale(state);
         
-        this.widgets.set(id, state);
+        this.widgets.set(container, state);
         
         return {
-            id,
-            destroy: () => this.destroy(id),
-            setOptions: (opts) => this.setOptions(id, opts),
+            destroy: () => this.detach(container),
+            setOptions: (opts) => this.setOptions(container, opts),
             getScale: () => state.scale,
             forceUpdate: () => this.applyScale(state)
         };
@@ -116,7 +153,7 @@ class WidgetScalingEngine {
         let scaleX = currentWidth / originalWidth;
         let scaleY = currentHeight / originalHeight;
 
-        if (config.preserveAspectRatio) {
+        if (config.preserveAspect) {
             // Use the smaller scale to fit content within bounds
             const scale = Math.min(scaleX, scaleY);
             state.scale = this.clamp(scale, config.minScale, config.maxScale);
@@ -139,7 +176,12 @@ class WidgetScalingEngine {
         const scaleResult = this.calculateScale(state);
         const scale = typeof scaleResult === 'object' ? scaleResult.scaleX : scaleResult;
 
-        if (config.pixelPerfect && canvas) {
+        // Check for pixel-art attribute on canvas or container
+        const isPixelArt = canvas?.dataset.pixelArt === 'true' || 
+                          canvas?.closest('[data-pixel-art="true"]') ||
+                          config.pixelArtDefault;
+
+        if (isPixelArt && canvas) {
             this.applyPixelPerfectScale(state, scale);
         } else {
             this.applyStandardScale(state, scale);
@@ -149,6 +191,13 @@ class WidgetScalingEngine {
         state.container.dispatchEvent(new CustomEvent('widgetscaled', {
             detail: { scale, width: state.currentWidth, height: state.currentHeight }
         }));
+        
+        // Also dispatch on canvas for game logic
+        if (canvas) {
+            canvas.dispatchEvent(new CustomEvent('canvasresized', {
+                detail: { scale, width: canvas.offsetWidth, height: canvas.offsetHeight }
+            }));
+        }
     }
 
     /**
@@ -330,8 +379,8 @@ class WidgetScalingEngine {
     /**
      * Update scaling options
      */
-    setOptions(id, options) {
-        const state = this.widgets.get(id);
+    setOptions(container, options) {
+        const state = this.widgets.get(container);
         if (!state) return;
         
         state.config = { ...state.config, ...options };
@@ -341,20 +390,19 @@ class WidgetScalingEngine {
     /**
      * Cleanup and destroy scaling instance
      */
-    destroy(id) {
-        const state = this.widgets.get(id);
+    detach(container) {
+        const state = this.widgets.get(container);
         if (!state) return;
 
-        if (state.observer) {
-            state.observer.disconnect();
-        }
+        // Stop observing
+        this.resizeObserver.unobserve(container);
 
         if (state.rafId) {
             cancelAnimationFrame(state.rafId);
         }
 
-        // Restore original canvas methods
-        if (state.canvas) {
+        // Restore original canvas methods if they were wrapped
+        if (state.canvas && state.canvas._originalAddEventListener) {
             state.canvas.addEventListener = state.canvas._originalAddEventListener;
             state.canvas.removeEventListener = state.canvas._originalRemoveEventListener;
         }
@@ -366,7 +414,7 @@ class WidgetScalingEngine {
             state.content.style.height = '';
         }
 
-        this.widgets.delete(id);
+        this.widgets.delete(container);
     }
 
     /**
@@ -391,7 +439,7 @@ function initWidgetScaling(container, options) {
     if (!window.__widgetScalingEngine) {
         window.__widgetScalingEngine = new WidgetScalingEngine();
     }
-    return window.__widgetScalingEngine.init(container, options);
+    return window.__widgetScalingEngine.attach(container, options);
 }
 
 // Export for module systems
