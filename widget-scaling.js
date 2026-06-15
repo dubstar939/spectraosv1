@@ -3,6 +3,7 @@
  * WIDGET SCALING ENGINE v2.0
  * Dynamic scaling system for resizable widgets
  * Production-grade with global policy support
+ * Integrated GPU-accelerated rendering path
  * ═══════════════════════════════════════════
  */
 
@@ -23,6 +24,7 @@ class WidgetScalingEngine {
         this.widgets = new Map();
         this.resizeObserver = null;
         this.initialized = false;
+        this.gpuManager = window.__gpuScalingManager || null;
     }
 
     /**
@@ -77,6 +79,30 @@ class WidgetScalingEngine {
         const originalWidth = content.offsetWidth || content.width || 0;
         const originalHeight = content.offsetHeight || content.height || 0;
         
+        // Check if GPU acceleration should be used
+        const isPixelArt = canvas?.dataset.pixelArt === 'true' || 
+                          canvas?.closest('[data-pixel-art="true"]') ||
+                          config.pixelArtDefault;
+        
+        let gpuRenderer = null;
+        if (canvas && this.gpuManager) {
+            const gpuConfig = window.SpectraGpuScalingConfig;
+            const useGpu = isPixelArt ? gpuConfig.pixelArtUseGpu : gpuConfig.smoothUiUseGpu;
+            
+            if (useGpu && gpuConfig.enabled) {
+                gpuRenderer = this.gpuManager.getRenderer(canvas, {
+                    isPixelArt,
+                    logicalWidth: canvas.width,
+                    logicalHeight: canvas.height,
+                    preserveAspect: config.preserveAspect
+                });
+                
+                if (gpuRenderer) {
+                    gpuRenderer.initialize();
+                }
+            }
+        }
+        
         const state = {
             container,
             content,
@@ -90,7 +116,8 @@ class WidgetScalingEngine {
             scaleX: 1,
             scaleY: 1,
             rafId: null,
-            inputListeners: []
+            inputListeners: [],
+            gpuRenderer
         };
 
         // Start observing
@@ -171,7 +198,7 @@ class WidgetScalingEngine {
      * Apply scaling transformation to content
      */
     applyScale(state) {
-        const { content, canvas, config } = state;
+        const { content, canvas, config, gpuRenderer } = state;
         
         const scaleResult = this.calculateScale(state);
         const scale = typeof scaleResult === 'object' ? scaleResult.scaleX : scaleResult;
@@ -181,7 +208,10 @@ class WidgetScalingEngine {
                           canvas?.closest('[data-pixel-art="true"]') ||
                           config.pixelArtDefault;
 
-        if (isPixelArt && canvas) {
+        // Use GPU rendering path if available
+        if (gpuRenderer && gpuRenderer.initialized) {
+            this.applyGpuScale(state, scale, isPixelArt);
+        } else if (isPixelArt && canvas) {
             this.applyPixelPerfectScale(state, scale);
         } else {
             this.applyStandardScale(state, scale);
@@ -189,7 +219,12 @@ class WidgetScalingEngine {
 
         // Dispatch custom event for widgets to listen to
         state.container.dispatchEvent(new CustomEvent('widgetscaled', {
-            detail: { scale, width: state.currentWidth, height: state.currentHeight }
+            detail: { 
+                scale, 
+                width: state.currentWidth, 
+                height: state.currentHeight,
+                renderPath: gpuRenderer?.initialized ? 'gpu' : 'cpu'
+            }
         }));
         
         // Also dispatch on canvas for game logic
@@ -261,6 +296,41 @@ class WidgetScalingEngine {
             canvas.style.display = 'block';
         }
 
+        state.scale = effectiveScale;
+    }
+
+    /**
+     * GPU-accelerated scaling via WebGL
+     */
+    applyGpuScale(state, scale, isPixelArt) {
+        const { canvas, gpuRenderer } = state;
+        
+        if (!canvas || !gpuRenderer) return;
+
+        // Update renderer settings
+        gpuRenderer.setPixelArt(isPixelArt);
+        
+        // Calculate effective scale (integer for pixel art, fractional allowed for smooth)
+        const effectiveScale = isPixelArt ? Math.max(1, Math.floor(scale)) : scale;
+        
+        // Update texture from canvas content
+        gpuRenderer.updateTexture(canvas);
+        
+        // Render with GPU scaling
+        gpuRenderer.render(effectiveScale);
+        
+        // Set canvas display size
+        canvas.style.width = `${state.originalWidth * effectiveScale}px`;
+        canvas.style.height = `${state.originalHeight * effectiveScale}px`;
+        
+        // Apply pixelated rendering for pixel art
+        if (isPixelArt) {
+            canvas.style.imageRendering = 'pixelated';
+            canvas.style.imageRendering = 'crisp-edges';
+        } else {
+            canvas.style.imageRendering = 'auto';
+        }
+        
         state.scale = effectiveScale;
     }
 
@@ -399,6 +469,12 @@ class WidgetScalingEngine {
 
         if (state.rafId) {
             cancelAnimationFrame(state.rafId);
+        }
+
+        // Cleanup GPU renderer if present
+        if (state.gpuRenderer && this.gpuManager) {
+            this.gpuManager.removeRenderer(state.canvas);
+            state.gpuRenderer = null;
         }
 
         // Restore original canvas methods if they were wrapped

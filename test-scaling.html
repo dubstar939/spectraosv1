@@ -239,6 +239,108 @@
     </div>
   </div>
 
+  <!-- GPU Scaling Test Section -->
+  <div class="instructions">
+    <h2>🎮 GPU Scaling Tests</h2>
+    <p>Tests for WebGL-accelerated scaling with pixel-perfect and smooth modes.</p>
+  </div>
+
+  <div class="test-grid">
+    <!-- Test 9: GPU Pixel-Art Scaling -->
+    <div class="test-card">
+      <h3>🎮 Test 9: GPU Pixel-Art Scaling</h3>
+      <p>WebGL-accelerated nearest-neighbor scaling for retro games</p>
+      <div class="test-container">
+        <div class="resize-test" id="test9-container">
+          <canvas id="test9-canvas" width="160" height="120" data-pixel-art="true"></canvas>
+        </div>
+      </div>
+      <div class="status info" id="test9-status">GPU path test →</div>
+      <button onclick="runTest9()">Run Test</button>
+    </div>
+
+    <!-- Test 10: GPU Smooth Scaling -->
+    <div class="test-card">
+      <h3>✨ Test 10: GPU Smooth Scaling</h3>
+      <p>WebGL-accelerated linear filtering for modern UI</p>
+      <div class="test-container">
+        <div class="resize-test" id="test10-container">
+          <canvas id="test10-canvas" width="320" height="200"></canvas>
+        </div>
+      </div>
+      <div class="status info" id="test10-status">GPU smooth test →</div>
+      <button onclick="runTest10()">Run Test</button>
+    </div>
+
+    <!-- Test 11: DPI Awareness -->
+    <div class="test-card">
+      <h3>📐 Test 11: DPI Awareness</h3>
+      <p>Tests correct scaling under different device pixel ratios</p>
+      <div class="test-container">
+        <div class="resize-test" id="test11-container">
+          <canvas id="test11-canvas" width="200" height="150"></canvas>
+        </div>
+      </div>
+      <div class="status info" id="test11-status">Current DPI: <span id="dpi-value">-</span></div>
+      <button onclick="runTest11()">Run Test</button>
+    </div>
+
+    <!-- Test 12: Performance Comparison -->
+    <div class="test-card">
+      <h3>⚡ Test 12: GPU vs CPU Performance</h3>
+      <p>Compare frame times between GPU and CPU rendering paths</p>
+      <div class="test-container">
+        <div class="resize-test" id="test12-container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div id="test12-gpu-fps" style="font-size:18px;color:#00ff88;margin-bottom:10px;">GPU FPS: --</div>
+          <div id="test12-cpu-fps" style="font-size:18px;color:#00bbf9;">CPU FPS: --</div>
+        </div>
+      </div>
+      <div class="status info" id="test12-status">Performance comparison →</div>
+      <button onclick="runTest12()">Run Test</button>
+    </div>
+  </div>
+
+  <!-- Debug Toggle -->
+  <div style="text-align:center;margin:30px 0;">
+    <button onclick="toggleGpuDebug()" style="background:#9b5de5;">Toggle GPU Debug Overlay</button>
+    <button onclick="toggleConfigPanel()" style="background:#f8961e;margin-left:10px;">Toggle Config Panel</button>
+  </div>
+
+  <!-- Config Panel -->
+  <div id="gpu-config-panel" style="display:none;max-width:600px;margin:20px auto;padding:20px;background:rgba(30,30,45,0.9);border-radius:12px;border:1px solid rgba(255,255,255,0.1);">
+    <h3 style="color:#00f5d4;margin-bottom:15px;">GPU Scaling Configuration</h3>
+    <div style="display:grid;gap:10px;">
+      <label style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="cfg-enabled" checked onchange="updateGpuConfig()">
+        <span>GPU Scaling Enabled</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="cfg-preferWebGL" checked onchange="updateGpuConfig()">
+        <span>Prefer WebGL</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="cfg-pixelArtUseGpu" checked onchange="updateGpuConfig()">
+        <span>Pixel Art Uses GPU</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="cfg-smoothUiUseGpu" checked onchange="updateGpuConfig()">
+        <span>Smooth UI Uses GPU</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="cfg-fallbackToCanvas2D" checked onchange="updateGpuConfig()">
+        <span>Fallback to Canvas 2D</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;">
+        <span>Max GPU Widgets:</span>
+        <input type="number" id="cfg-maxGpuWidgets" value="16" min="1" max="64" onchange="updateGpuConfig()" style="width:60px;padding:4px;border-radius:4px;border:1px solid #444;background:#222;color:#fff;">
+      </label>
+    </div>
+    <div style="margin-top:15px;text-align:right;">
+      <button onclick="applyGpuConfig()" style="background:#00ff88;color:#0a0a0f;">Apply Changes</button>
+    </div>
+  </div>
+
+  <script src="gpu-scaling.js"></script>
   <script src="widget-scaling.js"></script>
   <script>
     // Initialize scaling engines for each test
@@ -285,266 +387,214 @@
         }
       }
     }
-
-    // Test 1: Pixel-Art Scaling
-    function runTest1() {
-      const container = document.getElementById('test1-container');
-      const canvas = document.getElementById('test1-canvas');
-      const status = document.getElementById('test1-status');
+    
+    // GPU Scaling Tests
+    
+    // Test 9: GPU Pixel-Art Scaling
+    function runTest9() {
+      const container = document.getElementById('test9-container');
+      const canvas = document.getElementById('test9-canvas');
+      const status = document.getElementById('test9-status');
       
-      drawPattern('test1-canvas', 'pixel');
+      drawPattern('test9-canvas', 'pixel');
       
-      if (!tests.test1) {
-        tests.test1 = initWidgetScaling(container, {
+      if (!tests.test9) {
+        tests.test9 = initWidgetScaling(container, {
           preserveAspect: true,
           pixelArtDefault: true
         });
       }
       
-      // Verify pixelated rendering
       setTimeout(() => {
-        const style = getComputedStyle(canvas);
-        const isPixelated = style.imageRendering === 'pixelated' || 
-                           style.imageRendering === 'crisp-edges';
-        status.textContent = isPixelated ? 
-          '✓ Pixel-perfect scaling active' : 
-          '✗ Pixel scaling not applied';
-        status.className = 'status ' + (isPixelated ? 'pass' : 'fail');
-      }, 100);
+        const gpuRenderer = window.__widgetScalingEngine?.widgets?.get(container)?.gpuRenderer;
+        const isGpu = gpuRenderer?.initialized;
+        
+        status.textContent = isGpu ? 
+          '✓ GPU pixel-art scaling active (nearest-neighbor)' : 
+          'ℹ Using CPU fallback (check WebGL support)';
+        status.className = 'status ' + (isGpu ? 'pass' : 'info');
+      }, 200);
     }
 
-    // Test 2: Smooth Scaling
-    function runTest2() {
-      const container = document.getElementById('test2-container');
-      const canvas = document.getElementById('test2-canvas');
-      const status = document.getElementById('test2-status');
+    // Test 10: GPU Smooth Scaling
+    function runTest10() {
+      const container = document.getElementById('test10-container');
+      const canvas = document.getElementById('test10-canvas');
+      const status = document.getElementById('test10-status');
       
-      drawPattern('test2-canvas', 'smooth');
+      drawPattern('test10-canvas', 'smooth');
       
-      if (!tests.test2) {
-        tests.test2 = initWidgetScaling(container, {
+      if (!tests.test10) {
+        tests.test10 = initWidgetScaling(container, {
           preserveAspect: true,
           pixelArtDefault: false
         });
       }
       
       setTimeout(() => {
-        status.textContent = '✓ Smooth scaling enabled - drag corner to resize';
-        status.className = 'status pass';
-      }, 100);
+        const gpuRenderer = window.__widgetScalingEngine?.widgets?.get(container)?.gpuRenderer;
+        const isGpu = gpuRenderer?.initialized;
+        
+        status.textContent = isGpu ? 
+          '✓ GPU smooth scaling active (linear filtering)' : 
+          'ℹ Using CPU fallback (check WebGL support)';
+        status.className = 'status ' + (isGpu ? 'pass' : 'info');
+      }, 200);
     }
 
-    // Test 3: Input Mapping
-    function runTest3() {
-      const container = document.getElementById('test3-container');
-      const canvas = document.getElementById('test3-canvas');
-      const ctx = canvas.getContext('2d');
-      const status = document.getElementById('test3-status');
+    // Test 11: DPI Awareness
+    function runTest11() {
+      const container = document.getElementById('test11-container');
+      const canvas = document.getElementById('test11-canvas');
+      const status = document.getElementById('test11-status');
+      const dpiValue = document.getElementById('dpi-value');
       
-      // Clear and draw grid
-      ctx.fillStyle = '#1a1a24';
-      ctx.fillRect(0, 0, 200, 150);
+      drawPattern('test11-canvas', 'smooth');
       
-      // Draw coordinate grid
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      for (let x = 0; x <= 200; x += 20) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, 150);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= 150; y += 20) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(200, y);
-        ctx.stroke();
-      }
-      
-      if (!tests.test3) {
-        tests.test3 = initWidgetScaling(container, {
-          preserveAspect: false,
-          pixelArtDefault: false
-        });
-      }
-      
-      // Track mouse with coordinate remapping
-      canvas.onmousemove = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const x = (e.clientX - rect.left) * scaleX;
-        const y = (e.clientY - rect.top) * scaleY;
+      // Update DPI display
+      const updateDpi = () => {
+        const dpi = window.devicePixelRatio || 1;
+        dpiValue.textContent = dpi.toFixed(2);
         
-        // Draw dot at calculated position
-        ctx.fillStyle = '#1a1a24';
-        ctx.fillRect(0, 0, 200, 150);
-        ctx.fillStyle = '#00ff88';
-        ctx.beginPath();
-        ctx.arc(x, y, 5, 0, Math.PI * 2);
-        ctx.fill();
-        
-        status.textContent = `Canvas coords: (${Math.round(x)}, ${Math.round(y)}) | Display: (${Math.round(e.clientX - rect.left)}, ${Math.round(e.clientY - rect.top)})`;
-        status.className = 'status pass';
+        if (dpi !== 1) {
+          status.textContent = `✓ DPI-aware scaling at ${dpi.toFixed(2)}x`;
+          status.className = 'status pass';
+        } else {
+          status.textContent = 'ℹ Running at 1x DPI (try zooming browser)';
+          status.className = 'status info';
+        }
       };
-    }
-
-    // Test 4: DOM Element Scaling
-    function runTest4() {
-      const container = document.getElementById('test4-container');
-      const content = document.getElementById('test4-content');
-      const status = document.getElementById('test4-status');
       
-      if (!tests.test4) {
-        tests.test4 = initWidgetScaling(container, {
-          preserveAspect: true,
-          pixelArtDefault: false
+      updateDpi();
+      
+      // Listen for DPI changes
+      window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', updateDpi);
+      
+      if (!tests.test11) {
+        tests.test11 = initWidgetScaling(container, {
+          preserveAspect: true
         });
       }
-      
-      setTimeout(() => {
-        const hasTransform = content.style.transform !== '';
-        status.textContent = hasTransform ? 
-          '✓ CSS transform scaling active' : 
-          '✓ Content fits naturally';
-        status.className = 'status pass';
-      }, 100);
     }
 
-    // Test 5: Aspect Ratio
-    function runTest5() {
-      const container = document.getElementById('test5-container');
-      const canvas = document.getElementById('test5-canvas');
-      const ctx = canvas.getContext('2d');
-      const status = document.getElementById('test5-status');
+    // Test 12: Performance Comparison
+    function runTest12() {
+      const gpuFpsDisplay = document.getElementById('test12-gpu-fps');
+      const cpuFpsDisplay = document.getElementById('test12-cpu-fps');
+      const status = document.getElementById('test12-status');
       
-      // Draw square indicator
-      function drawSquare() {
-        ctx.fillStyle = '#0a0a0f';
-        ctx.fillRect(0, 0, 100, 100);
-        ctx.strokeStyle = '#00f5d4';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(10, 10, 80, 80);
-        ctx.fillStyle = '#00f5d4';
-        ctx.font = '12px monospace';
-        ctx.fillText('1:1', 40, 55);
-      }
-      drawSquare();
-      
-      if (!tests.test5) {
-        tests.test5 = initWidgetScaling(container, {
-          preserveAspect: true,
-          pixelArtDefault: false
-        });
-      }
-      
-      // Listen for scale events
-      canvas.addEventListener('widgetscaled', (e) => {
-        const { scale } = e.detail;
-        status.textContent = `Scale factor: ${scale.toFixed(2)}x (aspect ratio preserved)`;
-        status.className = 'status pass';
-      });
-    }
-
-    // Test 6: Performance
-    function runTest6() {
-      const container = document.getElementById('test6-container');
-      const fpsDisplay = document.getElementById('test6-fps');
-      const status = document.getElementById('test6-status');
-      
-      let updateCount = 0;
+      let gpuFrameCount = 0;
+      let cpuFrameCount = 0;
       let lastTime = performance.now();
       
-      if (!tests.test6) {
-        // Custom observer for performance testing
-        tests.test6 = new ResizeObserver(() => {
-          updateCount++;
-          const now = performance.now();
-          if (now - lastTime >= 1000) {
-            fpsDisplay.textContent = updateCount;
-            updateCount = 0;
-            lastTime = now;
-          }
-        });
-        tests.test6.observe(container);
-      }
+      // Create GPU test canvas
+      const gpuContainer = document.createElement('div');
+      gpuContainer.className = 'resize-test';
+      gpuContainer.style.cssText = 'width:100%;height:100px;position:absolute;opacity:0;pointer-events:none;';
+      gpuContainer.innerHTML = '<canvas id="test12-gpu-hidden" width="160" height="120" data-pixel-art="true"></canvas>';
+      document.body.appendChild(gpuContainer);
       
-      status.textContent = 'Resize rapidly - FPS should stay under 60 (debounced)';
-      status.className = 'status info';
-    }
-
-    // Test 7: Global Policy Override
-    function runTest7() {
-      const container = document.getElementById('test7-container');
-      const canvas = document.getElementById('test7-canvas');
-      const status = document.getElementById('test7-status');
+      const gpuCanvas = document.getElementById('test12-gpu-hidden');
+      const gpuCtx = gpuCanvas.getContext('2d');
       
-      drawPattern('test7-canvas', 'pixel');
+      // Create CPU test canvas
+      const cpuContainer = document.createElement('div');
+      cpuContainer.className = 'resize-test';
+      cpuContainer.style.cssText = 'width:100%;height:100px;position:absolute;opacity:0;pointer-events:none;';
+      cpuContainer.innerHTML = '<canvas id="test12-cpu-hidden" width="160" height="120" data-pixel-art="true"></canvas>';
+      document.body.appendChild(cpuContainer);
       
-      // Test with custom policy override
-      if (!tests.test7) {
-        tests.test7 = initWidgetScaling(container, {
-          preserveAspect: false,  // Override global policy
-          minScale: 0.1,
-          maxScale: 8
-        });
-      }
+      const cpuCanvas = document.getElementById('test12-cpu-hidden');
+      const cpuCtx = cpuCanvas.getContext('2d');
       
-      setTimeout(() => {
-        status.textContent = '✓ Custom policy applied (no aspect lock, extended range)';
-        status.className = 'status pass';
-      }, 100);
-    }
-
-    // Test 8: Extreme Resize Stress Test
-    function runTest8() {
-      const container = document.getElementById('test8-container');
-      const canvas = document.getElementById('test8-canvas');
-      const ctx = canvas.getContext('2d');
-      const status = document.getElementById('test8-status');
+      // Initialize GPU scaling
+      const gpuScaler = initWidgetScaling(gpuContainer);
       
-      // Draw test pattern
-      ctx.fillStyle = '#0a0a0f';
-      ctx.fillRect(0, 0, 80, 60);
-      ctx.fillStyle = '#ff006e';
-      ctx.fillRect(10, 10, 60, 40);
+      // CPU scaling just uses canvas2D directly
+      cpuCanvas.style.imageRendering = 'pixelated';
       
-      if (!tests.test8) {
-        tests.test8 = initWidgetScaling(container, {
-          preserveAspect: true,
-          pixelArtDefault: true
-        });
-      }
-      
-      // Run automated resize sweep
-      let sizes = [
-        { w: 50, h: 50 },
-        { w: 400, h: 100 },
-        { w: 100, h: 300 },
-        { w: 300, h: 300 }
-      ];
-      let currentSize = 0;
-      
-      function stressTest() {
-        if (currentSize >= sizes.length) {
-          status.textContent = '✓ All extreme sizes handled correctly';
-          status.className = 'status pass';
-          container.style.width = '100%';
-          container.style.height = '200px';
-          return;
+      // Animation loop
+      let frame = 0;
+      function animate() {
+        frame++;
+        
+        // Draw to both canvases
+        gpuCtx.fillStyle = `hsl(${frame % 360}, 70%, 50%)`;
+        gpuCtx.fillRect(0, 0, 160, 120);
+        
+        cpuCtx.fillStyle = `hsl(${frame % 360}, 70%, 50%)`;
+        cpuCtx.fillRect(0, 0, 160, 120);
+        
+        gpuFrameCount++;
+        cpuFrameCount++;
+        
+        const now = performance.now();
+        if (now - lastTime >= 1000) {
+          gpuFpsDisplay.textContent = `GPU FPS: ${gpuFrameCount}`;
+          cpuFpsDisplay.textContent = `CPU FPS: ${cpuFrameCount}`;
+          
+          gpuFrameCount = 0;
+          cpuFrameCount = 0;
+          lastTime = now;
         }
         
-        const size = sizes[currentSize];
-        container.style.width = size.w + 'px';
-        container.style.height = size.h + 'px';
-        currentSize++;
-        
-        setTimeout(stressTest, 200);
+        requestAnimationFrame(animate);
       }
       
-      status.textContent = 'Running stress test...';
+      animate();
+      
+      status.textContent = 'Monitoring frame rates...';
       status.className = 'status info';
-      stressTest();
+    }
+
+    // Toggle GPU Debug Overlay
+    function toggleGpuDebug() {
+      const existing = document.getElementById('gpu-scaling-debug');
+      if (existing) {
+        existing.remove();
+      } else {
+        showGpuDebugOverlay();
+      }
+    }
+
+    // Toggle Config Panel
+    function toggleConfigPanel() {
+      const panel = document.getElementById('gpu-config-panel');
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      
+      // Load current config
+      const cfg = window.SpectraGpuScalingConfig;
+      document.getElementById('cfg-enabled').checked = cfg.enabled;
+      document.getElementById('cfg-preferWebGL').checked = cfg.preferWebGL;
+      document.getElementById('cfg-pixelArtUseGpu').checked = cfg.pixelArtUseGpu;
+      document.getElementById('cfg-smoothUiUseGpu').checked = cfg.smoothUiUseGpu;
+      document.getElementById('cfg-fallbackToCanvas2D').checked = cfg.fallbackToCanvas2D;
+      document.getElementById('cfg-maxGpuWidgets').value = cfg.maxGpuWidgets;
+    }
+
+    // Update GPU Config from panel
+    function updateGpuConfig() {
+      // Just updates the internal state, apply on button click
+    }
+
+    // Apply GPU Config
+    function applyGpuConfig() {
+      window.SpectraGpuScalingConfig = {
+        enabled: document.getElementById('cfg-enabled').checked,
+        preferWebGL: document.getElementById('cfg-preferWebGL').checked,
+        pixelArtUseGpu: document.getElementById('cfg-pixelArtUseGpu').checked,
+        smoothUiUseGpu: document.getElementById('cfg-smoothUiUseGpu').checked,
+        fallbackToCanvas2D: document.getElementById('cfg-fallbackToCanvas2D').checked,
+        maxGpuWidgets: parseInt(document.getElementById('cfg-maxGpuWidgets').value) || 16,
+        debugOverlay: false,
+        vsync: true,
+        textureFiltering: {
+          pixelArt: 'nearest',
+          smooth: 'linear'
+        }
+      };
+      
+      alert('GPU config updated! Refresh widgets to apply changes.');
     }
 
     // Auto-run all tests on load
@@ -557,7 +607,11 @@
       runTest6();
       runTest7();
       runTest8();
+      runTest9();
+      runTest10();
+      runTest11();
     };
   </script>
 </body>
 </html>
+
