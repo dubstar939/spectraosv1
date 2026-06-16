@@ -383,19 +383,18 @@ class GpuScalingRenderer {
     }
     
     /**
-     * Handle DPI changes
+     * Handle DPI changes using matchMedia API (more efficient than polling)
      */
     setupDpiListener() {
         if (this._dpiListenerAttached) return;
         
-        let lastDpi = this.dpi;
+        const currentDpi = window.devicePixelRatio || 1;
         
-        const checkDpi = () => {
-            const currentDpi = window.devicePixelRatio || 1;
-            if (currentDpi !== lastDpi) {
-                lastDpi = currentDpi;
-                this.dpi = currentDpi;
-                this.debugInfo.dpi = currentDpi;
+        const handleDpiChange = (e) => {
+            const newDpi = window.devicePixelRatio || 1;
+            if (newDpi !== this.dpi) {
+                this.dpi = newDpi;
+                this.debugInfo.dpi = newDpi;
                 
                 // Reinitialize texture with new DPI
                 if (this.initialized) {
@@ -404,10 +403,17 @@ class GpuScalingRenderer {
                     this.needsUpdate = true;
                 }
             }
-            requestAnimationFrame(checkDpi);
         };
         
-        requestAnimationFrame(checkDpi);
+        // Use matchMedia to detect DPI changes efficiently
+        const dpiQuery = window.matchMedia(`(resolution: ${currentDpi}dppx)`);
+        if (dpiQuery && dpiQuery.addEventListener) {
+            dpiQuery.addEventListener('change', handleDpiChange);
+        } else if (dpiQuery && dpiQuery.addListener) {
+            // Fallback for older browsers
+            dpiQuery.addListener(handleDpiChange);
+        }
+        
         this._dpiListenerAttached = true;
     }
     
@@ -531,7 +537,7 @@ class GpuScalingManager {
     }
     
     /**
-     * Main render loop
+     * Main render loop - optimized to only render visible canvases
      */
     startRenderLoop() {
         if (this.isRunning) return;
@@ -541,9 +547,21 @@ class GpuScalingManager {
         const render = () => {
             if (!this.isRunning) return;
             
+            // Only render canvases that need updates and are visible
             this.renderers.forEach((renderer, canvas) => {
-                if (renderer.initialized && renderer.needsUpdate) {
+                // Check if canvas is visible in viewport
+                const rect = canvas.getBoundingClientRect();
+                const isVisible = (
+                    rect.top >= 0 &&
+                    rect.left >= 0 &&
+                    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+                );
+                
+                // Only render if visible and needs update
+                if (renderer.initialized && renderer.needsUpdate && isVisible) {
                     renderer.render();
+                    renderer.needsUpdate = false;
                 }
             });
             
