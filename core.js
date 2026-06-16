@@ -43,12 +43,19 @@ class VirtualFS {
     }
 
     saveToStorage() {
-        try {
-            const data = JSON.stringify(this.root);
-            localStorage.setItem(this.storageKey, data);
-        } catch (e) {
-            console.error('Failed to save filesystem state:', e);
+        // Debounce filesystem state saves to reduce localStorage writes
+        if (this.saveDebounceTimer) {
+            clearTimeout(this.saveDebounceTimer);
         }
+        
+        this.saveDebounceTimer = setTimeout(() => {
+            try {
+                const data = JSON.stringify(this.root);
+                localStorage.setItem(this.storageKey, data);
+            } catch (e) {
+                console.error('Failed to save filesystem state:', e);
+            }
+        }, 1000);
     }
 
     loadFromStorage() {
@@ -166,16 +173,33 @@ class NotificationSystem {
         this.storageKey = 'spectraos-notifications';
         this.notifications = [];
         this.listeners = [];
+        this.pendingChanges = false;
+        this.saveDebounceTimer = null;
         this.loadFromStorage();
     }
-
+    
+    /**
+     * Debounced save to localStorage - batches writes for performance
+     */
     saveToStorage() {
-        try {
-            const data = JSON.stringify(this.notifications);
-            localStorage.setItem(this.storageKey, data);
-        } catch (e) {
-            console.error('Failed to save notifications:', e);
+        if (this.saveDebounceTimer) {
+            clearTimeout(this.saveDebounceTimer);
         }
+        
+        this.pendingChanges = true;
+        
+        // Debounce localStorage writes by 500ms
+        this.saveDebounceTimer = setTimeout(() => {
+            if (!this.pendingChanges) return;
+            
+            try {
+                const data = JSON.stringify(this.notifications);
+                localStorage.setItem(this.storageKey, data);
+                this.pendingChanges = false;
+            } catch (e) {
+                console.error('Failed to save notifications:', e);
+            }
+        }, 500);
     }
 
     loadFromStorage() {
@@ -310,28 +334,104 @@ class WindowManager {
         this.zIndex = 200;
         this.activeWindow = null;
         this.windowLayer = document.getElementById('window-layer');
+        
+        // Performance: Shared ResizeObserver for all windows
+        this.sharedResizeObserver = null;
+        this.resizeCallbacks = new Map();
+        
+        // Performance: DOM element cache
+        this.domCache = new Map();
+        
+        // Performance: Render loop tracking
+        this.visibleCanvases = new Set();
+        this.renderLoopId = null;
+        this.isRenderLoopRunning = false;
+        
+        // Initialize shared resources
+        this.initSharedResources();
+    }
+    
+    /**
+     * Initialize shared performance resources
+     */
+    initSharedResources() {
+        // Create shared ResizeObserver
+        this.sharedResizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const container = entry.target;
+                const callback = this.resizeCallbacks.get(container);
+                if (callback) {
+                    // Debounce with requestAnimationFrame
+                    if (container._rafId) {
+                        cancelAnimationFrame(container._rafId);
+                    }
+                    container._rafId = requestAnimationFrame(() => {
+                        callback(entry.contentRect.width, entry.contentRect.height);
+                    });
+                }
+            }
+        });
+        
+        // Setup matchMedia for DPI change detection (more efficient than polling)
+        this.setupDpiDetection();
+    }
+    
+    /**
+     * Setup efficient DPI change detection using matchMedia API
+     */
+    setupDpiDetection() {
+        let currentDpi = window.devicePixelRatio || 1;
+        
+        const handleDpiChange = (e) => {
+            const newDpi = window.devicePixelRatio || 1;
+            if (newDpi !== currentDpi) {
+                currentDpi = newDpi;
+                // Notify all windows of DPI change
+                this.windows.forEach((win) => {
+                    if (win.element._onDpiChange) {
+                        win.element._onDpiChange(newDpi);
+                    }
+                });
+            }
+        };
+        
+        // Use matchMedia to detect DPI changes efficiently
+        const dpiQuery = window.matchMedia(`(resolution: ${currentDpi}dppx)`);
+        if (dpiQuery && dpiQuery.addEventListener) {
+            dpiQuery.addEventListener('change', handleDpiChange);
+        } else if (dpiQuery && dpiQuery.addListener) {
+            // Fallback for older browsers
+            dpiQuery.addListener(handleDpiChange);
+        }
     }
 
     saveToStorage() {
-        try {
-            const windowData = Array.from(this.windows.entries()).map(([id, win]) => ({
-                id,
-                appId: win.appId,
-                title: win.title,
-                minimized: win.minimized,
-                maximized: win.maximized,
-                style: {
-                    width: win.element.style.width,
-                    height: win.element.style.height,
-                    left: win.element.style.left,
-                    top: win.element.style.top,
-                    zIndex: win.element.style.zIndex
-                }
-            }));
-            localStorage.setItem(this.storageKey, JSON.stringify(windowData));
-        } catch (e) {
-            console.error('Failed to save window state:', e);
+        // Debounce window state saves to reduce localStorage writes
+        if (this.saveDebounceTimer) {
+            clearTimeout(this.saveDebounceTimer);
         }
+        
+        this.saveDebounceTimer = setTimeout(() => {
+            try {
+                const windowData = Array.from(this.windows.entries()).map(([id, win]) => ({
+                    id,
+                    appId: win.appId,
+                    title: win.title,
+                    minimized: win.minimized,
+                    maximized: win.maximized,
+                    style: {
+                        width: win.element.style.width,
+                        height: win.element.style.height,
+                        left: win.element.style.left,
+                        top: win.element.style.top,
+                        zIndex: win.element.style.zIndex
+                    }
+                }));
+                localStorage.setItem(this.storageKey, JSON.stringify(windowData));
+            } catch (e) {
+                console.error('Failed to save window state:', e);
+            }
+        }, 300);
     }
 
     loadFromStorage() {
@@ -382,6 +482,9 @@ class WindowManager {
         this.windowLayer.appendChild(win);
         this.windows.set(id, { element: win, appId, title, minimized: false, maximized: false });
 
+        // Performance: Cache frequently accessed DOM elements
+        this.cacheWindowElements(win, id);
+
         this.setupWindowEvents(win, id);
         this.focusWindow(id);
         this.updateActiveLabel(title);
@@ -396,10 +499,12 @@ class WindowManager {
     }
 
     setupWindowEvents(win, id) {
-        const titlebar = win.querySelector('.wm-titlebar');
-        const minimizeBtn = win.querySelector('.wm-btn.min');
-        const maximizeBtn = win.querySelector('.wm-btn.max');
-        const closeBtn = win.querySelector('.wm-btn.close');
+        // Use cached DOM elements if available
+        const cache = this.windows.get(id)?.domCache;
+        const titlebar = cache?.titlebar || win.querySelector('.wm-titlebar');
+        const minimizeBtn = cache?.minimizeBtn || win.querySelector('.wm-btn.min');
+        const maximizeBtn = cache?.maximizeBtn || win.querySelector('.wm-btn.max');
+        const closeBtn = cache?.closeBtn || win.querySelector('.wm-btn.close');
 
         // Focus on click or focus
         win.addEventListener('mousedown', () => this.focusWindow(id));
@@ -543,7 +648,8 @@ class WindowManager {
      * Integrates with global SpectraScalingPolicy if available
      */
     setupWidgetScaling(win, id) {
-        const content = win.querySelector('.wm-content');
+        const cache = this.windows.get(id)?.domCache;
+        const content = cache?.content || win.querySelector('.wm-content');
         if (!content) return;
 
         // Store scaling state on window object
@@ -553,24 +659,16 @@ class WindowManager {
             widgets: []
         };
 
-        // Create ResizeObserver for content container
-        win._scalingState.observer = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                const { width, height } = entry.contentRect;
-                
-                // Debounce with requestAnimationFrame
-                if (win._scalingState.rafId) {
-                    cancelAnimationFrame(win._scalingState.rafId);
-                }
-
-                win._scalingState.rafId = requestAnimationFrame(() => {
-                    // Scale all widgets inside this window
-                    this.scaleWindowContent(content, width, height);
-                });
-            }
-        });
-
-        win._scalingState.observer.observe(content);
+        // Use shared ResizeObserver for efficiency
+        const resizeCallback = (width, height) => {
+            this.scaleWindowContent(content, width, height);
+        };
+        
+        this.sharedResizeObserver.observe(content);
+        this.resizeCallbacks.set(content, resizeCallback);
+        
+        // Store reference for cleanup
+        win._scalingState.content = content;
     }
 
     /**
@@ -688,8 +786,10 @@ class WindowManager {
      */
     cleanupWidgetScaling(win) {
         if (win._scalingState) {
-            if (win._scalingState.observer) {
-                win._scalingState.observer.disconnect();
+            // Unobserve from shared ResizeObserver
+            if (win._scalingState.content) {
+                this.sharedResizeObserver.unobserve(win._scalingState.content);
+                this.resizeCallbacks.delete(win._scalingState.content);
             }
             if (win._scalingState.rafId) {
                 cancelAnimationFrame(win._scalingState.rafId);
@@ -758,12 +858,64 @@ class WindowManager {
     }
 
     updateActiveLabel(title) {
-        document.getElementById('active-app-label').textContent = title;
+        // Use cached reference if available
+        const activeLabel = document.getElementById('active-app-label');
+        if (activeLabel) {
+            activeLabel.textContent = title;
+        }
     }
 
     getWindowContent(id) {
         const win = this.windows.get(id);
         return win ? win.element.querySelector('.window-content') : null;
+    }
+    
+    /**
+     * Optimized GPU render loop - only renders visible canvases
+     */
+    startRenderLoop() {
+        if (this.isRenderLoopRunning) return;
+        
+        this.isRenderLoopRunning = true;
+        const render = () => {
+            if (!this.isRenderLoopRunning) return;
+            
+            // Only process visible canvases
+            this.visibleCanvases.forEach(canvas => {
+                if (canvas._needsUpdate && canvas._gpuRenderer) {
+                    canvas._gpuRenderer.render();
+                    canvas._needsUpdate = false;
+                }
+            });
+            
+            this.renderLoopId = requestAnimationFrame(render);
+        };
+        
+        this.renderLoopId = requestAnimationFrame(render);
+    }
+    
+    stopRenderLoop() {
+        this.isRenderLoopRunning = false;
+        if (this.renderLoopId) {
+            cancelAnimationFrame(this.renderLoopId);
+            this.renderLoopId = null;
+        }
+    }
+    
+    registerCanvasForRendering(canvas, gpuRenderer) {
+        canvas._gpuRenderer = gpuRenderer;
+        this.visibleCanvases.add(canvas);
+        this.startRenderLoop();
+    }
+    
+    unregisterCanvas(canvas) {
+        this.visibleCanvases.delete(canvas);
+        canvas._gpuRenderer = null;
+        
+        // Stop render loop if no visible canvases
+        if (this.visibleCanvases.size === 0) {
+            this.stopRenderLoop();
+        }
     }
 }
 
