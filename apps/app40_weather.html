@@ -5,55 +5,266 @@
   <title>Weather — SpectraOS</title>
   <link rel="stylesheet" href="spectra.css">
   <style>
-    .weather-main{text-align:center;padding:30px;}
-    .weather-temp{font-size:64px;font-weight:300;}
-    .weather-desc{font-size:18px;opacity:.7;margin:10px 0;}
-    .weather-location{font-size:14px;opacity:.5;}
-    .weather-forecast{display:flex;justify-content:space-around;padding:20px;}
-    .weather-day{text-align:center;padding:10px;}
-    .weather-day-name{font-size:12px;opacity:.6;margin-bottom:5px;}
-    .weather-day-temp{font-size:20px;font-weight:600;}
-    .weather-day-icon{font-size:24px;margin:5px 0;}
+    .weather-main { text-align: center; padding: 30px 20px; }
+    .weather-temp { font-size: 64px; font-weight: 300; letter-spacing: -2px; text-shadow: 0 0 30px rgba(0, 255, 136, 0.3); }
+    .weather-desc { font-size: 16px; opacity: 0.8; margin: 8px 0 4px; font-weight: 500; }
+    .weather-location { font-size: 13px; opacity: 0.5; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .weather-location::before { content: '📍'; font-size: 12px; }
+    .weather-forecast { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 15px 10px; border-top: 1px solid rgba(255, 255, 255, 0.06); margin-top: 10px; }
+    .weather-day { text-align: center; padding: 12px 6px; background: rgba(255, 255, 255, 0.03); border-radius: 10px; transition: all 0.2s ease; border: 1px solid transparent; }
+    .weather-day:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(0, 255, 136, 0.2); transform: translateY(-2px); }
+    .weather-day-name { font-size: 11px; opacity: 0.5; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .weather-day-icon { font-size: 22px; margin: 6px 0; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); }
+    .weather-day-temp { font-size: 15px; font-weight: 600; opacity: 0.9; }
+    .weather-error { text-align: center; padding: 20px; opacity: 0.6; font-size: 13px; }
+    .weather-loading { text-align: center; padding: 40px 20px; }
+    .weather-spinner { width: 24px; height: 24px; border: 2px solid rgba(255, 255, 255, 0.1); border-top-color: rgba(0, 255, 136, 0.8); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .weather-search-row { display: flex; gap: 8px; justify-content: center; align-items: center; padding: 12px 15px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+    .weather-search-input { flex: 1; min-width: 0; }
+    .weather-search-btn { white-space: nowrap; padding: 8px 14px; }
+    .weather-refresh-btn { background: rgba(0, 255, 136, 0.1); border-color: rgba(0, 255, 136, 0.3); }
+    .weather-refresh-btn:hover { background: rgba(0, 255, 136, 0.2); }
+    .weather-meta { display: flex; justify-content: center; gap: 15px; margin-top: 12px; font-size: 11px; opacity: 0.5; }
+    .weather-meta-item { display: flex; align-items: center; gap: 4px; }
   </style>
 </head>
 <body>
-  <div class="window" style="width:340px;height:420px;">
+  <div class="window" style="width: 360px; height: 440px;">
     <div class="titlebar"><div class="title">🌤 Weather</div><div class="winbtns"><button class="winbtn" onclick="window.close()">×</button></div></div>
-    <div class="winbody">
-      <div class="weather-main">
-        <div class="weather-temp" id="wTemp">72°</div>
-        <div class="weather-desc" id="wDesc">Partly Cloudy</div>
-        <div class="weather-location">San Francisco, CA</div>
+    <div class="winbody" style="padding: 0; display: flex; flex-direction: column;">
+      <div id="weatherContent" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="weather-loading" id="wLoading">
+          <div class="weather-spinner"></div>
+          <div style="font-size: 13px; opacity: 0.6;">Fetching weather data...</div>
+        </div>
+        <div id="weatherApp" style="display: none; flex: 1; display: none; flex-direction: column;">
+          <div class="weather-main">
+            <div class="weather-temp" id="wTemp">--°</div>
+            <div class="weather-desc" id="wDesc">Loading...</div>
+            <div class="weather-location" id="wLocation">Detecting location...</div>
+            <div class="weather-meta" id="wMeta"></div>
+          </div>
+          <div class="weather-forecast" id="wForecast"></div>
+        </div>
+        <div class="weather-error" id="wError" style="display: none;"></div>
       </div>
-      <div class="weather-forecast" id="wForecast"></div>
-      <div style="text-align:center;margin-top:10px;">
-        <input type="text" class="input" id="wCity" placeholder="Enter city..." style="width:150px;">
-        <button class="btn" onclick="searchWeather()">Search</button>
+      <div class="weather-search-row">
+        <input type="text" class="input weather-search-input" id="wCity" placeholder="Search city..." style="flex: 1;">
+        <button class="btn weather-search-btn" onclick="searchWeather()" title="Search">🔍</button>
+        <button class="btn weather-search-btn weather-refresh-btn" onclick="refreshWeather()" title="Refresh">↻</button>
       </div>
     </div>
   </div>
   <script>
-    const conditions=[{t:72,d:'Sunny',i:'☀️'},{t:65,d:'Partly Cloudy',i:'⛅'},{t:58,d:'Cloudy',i:'☁️'},{t:52,d:'Rainy',i:'🌧'},{t:45,d:'Stormy',i:'⛈️'},{t:38,d:'Snowy',i:'❄️'}];
-    function searchWeather(){
-      const city=document.getElementById('wCity').value;
-      if(!city) return;
-      const c=conditions[Math.floor(Math.random()*conditions.length)];
-      document.getElementById('wTemp').textContent=c.t+'°';
-      document.getElementById('wDesc').textContent=c.d;
-      document.querySelector('.weather-location').textContent=city;
-      renderForecast();
+    // Open-Meteo API (free, no key required)
+    const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
+    const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
+    
+    let currentLat = null;
+    let currentLon = null;
+    let currentCity = 'San Francisco';
+
+    const weatherCodes = {
+      0: { desc: 'Clear Sky', icon: '☀️' },
+      1: { desc: 'Mostly Clear', icon: '🌤️' },
+      2: { desc: 'Partly Cloudy', icon: '⛅' },
+      3: { desc: 'Overcast', icon: '☁️' },
+      45: { desc: 'Foggy', icon: '🌫️' },
+      48: { desc: 'Depositing Rime Fog', icon: '🌫️' },
+      51: { desc: 'Light Drizzle', icon: '🌦️' },
+      53: { desc: 'Moderate Drizzle', icon: '🌦️' },
+      55: { desc: 'Dense Drizzle', icon: '🌧️' },
+      61: { desc: 'Slight Rain', icon: '🌦️' },
+      63: { desc: 'Moderate Rain', icon: '🌧️' },
+      65: { desc: 'Heavy Rain', icon: '🌧️' },
+      71: { desc: 'Slight Snow', icon: '🌨️' },
+      73: { desc: 'Moderate Snow', icon: '🌨️' },
+      75: { desc: 'Heavy Snow', icon: '❄️' },
+      77: { desc: 'Snow Grains', icon: '❄️' },
+      80: { desc: 'Slight Showers', icon: '🌦️' },
+      81: { desc: 'Moderate Showers', icon: '🌧️' },
+      82: { desc: 'Violent Showers', icon: '⛈️' },
+      95: { desc: 'Thunderstorm', icon: '⛈️' },
+      96: { desc: 'Thunderstorm & Hail', icon: '⛈️' },
+      99: { desc: 'Thunderstorm & Heavy Hail', icon: '⛈️' }
+    };
+
+    function getWeatherIcon(code) {
+      return weatherCodes[code] || { desc: 'Unknown', icon: '🌡️' };
     }
-    function renderForecast(){
-      const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-      const f=document.getElementById('wForecast'); f.innerHTML='';
-      for(let i=0;i<5;i++){
-        const c=conditions[Math.floor(Math.random()*conditions.length)];
-        const el=document.createElement('div'); el.className='weather-day';
-        el.innerHTML=`<div class="weather-day-name">${days[i]}</div><div class="weather-day-icon">${c.i}</div><div class="weather-day-temp">${c.t}°</div>`;
-        f.appendChild(el);
+
+    async function fetchWeather(lat, lon, cityName) {
+      try {
+        document.getElementById('wLoading').style.display = 'block';
+        document.getElementById('weatherApp').style.display = 'none';
+        document.getElementById('wError').style.display = 'none';
+
+        const params = new URLSearchParams({
+          latitude: lat,
+          longitude: lon,
+          current_weather: true,
+          daily: 'temperature_2m_max,temperature_2m_min,weather_code',
+          timezone: 'auto',
+          forecast_days: 5
+        });
+
+        const response = await fetch(`${WEATHER_URL}?${params}`);
+        if (!response.ok) throw new Error('Failed to fetch weather data');
+        
+        const data = await response.json();
+        const current = data.current_weather;
+        const daily = data.daily;
+
+        // Update current weather
+        const weatherInfo = getWeatherIcon(current.weathercode);
+        document.getElementById('wTemp').textContent = `${Math.round(current.temperature)}°`;
+        document.getElementById('wDesc').textContent = weatherInfo.desc;
+        document.getElementById('wLocation').textContent = cityName;
+        document.getElementById('wDesc').innerHTML = `${weatherInfo.icon} ${weatherInfo.desc}`;
+
+        // Add meta info
+        const metaHtml = `
+          <div class="weather-meta-item">💨 ${Math.round(current.windspeed)} km/h</div>
+          <div class="weather-meta-item">🧭 ${getWindDirection(current.winddirection)}</div>
+        `;
+        document.getElementById('wMeta').innerHTML = metaHtml;
+
+        // Render forecast
+        renderForecast(daily);
+
+        document.getElementById('wLoading').style.display = 'none';
+        document.getElementById('weatherApp').style.display = 'flex';
+      } catch (error) {
+        console.error('Weather fetch error:', error);
+        document.getElementById('wLoading').style.display = 'none';
+        document.getElementById('wError').style.display = 'block';
+        document.getElementById('wError').textContent = 'Unable to fetch weather. Please try again.';
       }
     }
-    renderForecast();
+
+    function getWindDirection(degrees) {
+      const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      return directions[Math.round(degrees / 45) % 8];
+    }
+
+    function renderForecast(daily) {
+      const container = document.getElementById('wForecast');
+      container.innerHTML = '';
+      
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      
+      for (let i = 0; i < Math.min(5, daily.time.length); i++) {
+        const date = new Date(daily.time[i]);
+        const dayName = i === 0 ? 'Today' : dayNames[date.getDay()];
+        const maxTemp = Math.round(daily.temperature_2m_max[i]);
+        const minTemp = Math.round(daily.temperature_2m_min[i]);
+        const weatherInfo = getWeatherIcon(daily.weather_code[i]);
+
+        const dayEl = document.createElement('div');
+        dayEl.className = 'weather-day';
+        dayEl.innerHTML = `
+          <div class="weather-day-name">${dayName}</div>
+          <div class="weather-day-icon">${weatherInfo.icon}</div>
+          <div class="weather-day-temp">${maxTemp}°<span style="font-size: 11px; opacity: 0.5; font-weight: 400;">/${minTemp}°</span></div>
+        `;
+        container.appendChild(dayEl);
+      }
+    }
+
+    async function searchWeather() {
+      const cityInput = document.getElementById('wCity');
+      const city = cityInput.value.trim();
+      if (!city) return;
+
+      try {
+        document.getElementById('wLoading').style.display = 'block';
+        document.getElementById('weatherApp').style.display = 'none';
+        document.getElementById('wError').style.display = 'none';
+
+        const geoResponse = await fetch(`${GEOCODING_URL}?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+        if (!geoResponse.ok) throw new Error('City not found');
+        
+        const geoData = await geoResponse.json();
+        if (!geoData.results || geoData.results.length === 0) {
+          throw new Error('City not found');
+        }
+
+        const result = geoData.results[0];
+        currentLat = result.latitude;
+        currentLon = result.longitude;
+        currentCity = `${result.name}${result.admin1 ? ', ' + result.admin1 : ''}`;
+
+        await fetchWeather(currentLat, currentLon, currentCity);
+        cityInput.value = '';
+      } catch (error) {
+        console.error('Search error:', error);
+        document.getElementById('wLoading').style.display = 'none';
+        document.getElementById('wError').style.display = 'block';
+        document.getElementById('wError').textContent = `City "${city}" not found. Please try another name.`;
+      }
+    }
+
+    function refreshWeather() {
+      if (currentLat && currentLon) {
+        fetchWeather(currentLat, currentLon, currentCity);
+      } else {
+        // Default to San Francisco
+        currentLat = 37.7749;
+        currentLon = -122.4194;
+        currentCity = 'San Francisco, CA';
+        fetchWeather(currentLat, currentLon, currentCity);
+      }
+    }
+
+    // Initialize with default location (San Francisco)
+    async function initWeather() {
+      // Try to get user's location first
+      if ('geolocation' in navigator) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          });
+          currentLat = position.coords.latitude;
+          currentLon = position.coords.longitude;
+          currentCity = 'Your Location';
+          
+          // Reverse geocode to get city name
+          try {
+            const reverseResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${currentLat}&longitude=${currentLon}`);
+            const reverseData = await reverseResponse.json();
+            if (reverseData.results && reverseData.results.length > 0) {
+              const r = reverseData.results[0];
+              currentCity = `${r.name}${r.admin1 ? ', ' + r.admin1 : ''}`;
+            }
+          } catch (e) {
+            // Use coordinates if reverse geocode fails
+            currentCity = `Lat: ${currentLat.toFixed(2)}, Lon: ${currentLon.toFixed(2)}`;
+          }
+        } catch (geoError) {
+          console.log('Geolocation not available, using default');
+          currentLat = 37.7749;
+          currentLon = -122.4194;
+          currentCity = 'San Francisco, CA';
+        }
+      } else {
+        currentLat = 37.7749;
+        currentLon = -122.4194;
+        currentCity = 'San Francisco, CA';
+      }
+
+      await fetchWeather(currentLat, currentLon, currentCity);
+    }
+
+    // Handle Enter key in search input
+    document.getElementById('wCity').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchWeather();
+      }
+    });
+
+    // Initialize on load
+    initWeather();
   </script>
 </body>
 </html>
