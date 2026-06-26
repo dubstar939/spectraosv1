@@ -265,12 +265,21 @@
     .wm-btn.max { background: #28c840; }
     .wm-btn.close { background: #ff5f57; }
 
-    .wm-content { height: calc(100% - 36px); overflow: auto; }
+    .wm-content { height: calc(100% - 36px); overflow: hidden; }
     .wm-content iframe { width: 100%; height: 100%; border: none; }
 
     .wm-resize {
       position: absolute; right: 0; bottom: 0; width: 16px; height: 16px;
       cursor: se-resize; z-index: 10;
+      background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.3) 50%);
+      border-radius: 0 0 4px 0;
+      transition: all 0.2s ease;
+    }
+    
+    .wm-resize:hover {
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.5) 50%);
     }
 
     /* ===== DESKTOP ICONS ===== */
@@ -682,6 +691,15 @@
       
       w.style.width = Math.max(minW, startWidth + dx) + 'px';
       w.style.height = Math.max(minH, startHeight + dy) + 'px';
+      
+      // Dispatch custom event to trigger content scaling
+      const content = w.querySelector('.wm-content');
+      if (content) {
+        content.dispatchEvent(new CustomEvent('widgetresized', {
+          bubbles: true,
+          detail: { width: w.offsetWidth, height: w.offsetHeight }
+        }));
+      }
     }
     
     function handleResizeEnd() {
@@ -692,6 +710,47 @@
     document.addEventListener('touchmove', handleResizeMove, { passive: true });
     document.addEventListener('mouseup', handleResizeEnd);
     document.addEventListener('touchend', handleResizeEnd);
+    
+    // Keyboard shortcuts for precise window resizing (Ctrl+Alt+Arrow keys)
+    document.addEventListener('keydown', (e) => {
+      if (!e.ctrlKey || !e.altKey) return;
+      
+      const focusedWindow = document.querySelector('.wm-window:focus-within');
+      if (!focusedWindow) return;
+      
+      const id = focusedWindow.id.replace('win-', '');
+      const w = windows[id];
+      if (!w) return;
+      
+      const step = e.shiftKey ? 20 : 5; // Larger step with Shift
+      let changed = false;
+      
+      if (e.key === 'ArrowRight') {
+        w.style.width = Math.max(320, w.offsetWidth + step) + 'px';
+        changed = true;
+      } else if (e.key === 'ArrowLeft') {
+        w.style.width = Math.max(320, w.offsetWidth - step) + 'px';
+        changed = true;
+      } else if (e.key === 'ArrowDown') {
+        w.style.height = Math.max(200, w.offsetHeight + step) + 'px';
+        changed = true;
+      } else if (e.key === 'ArrowUp') {
+        w.style.height = Math.max(200, w.offsetHeight - step) + 'px';
+        changed = true;
+      }
+      
+      if (changed) {
+        e.preventDefault();
+        // Trigger resize event to update scaling
+        const content = w.querySelector('.wm-content');
+        if (content) {
+          content.dispatchEvent(new CustomEvent('widgetresized', {
+            bubbles: true,
+            detail: { width: w.offsetWidth, height: w.offsetHeight }
+          }));
+        }
+      }
+    });
 
     // ===== LAUNCHER WITH KEYBOARD NAVIGATION =====
     let launcherKeyboardIndex = -1;

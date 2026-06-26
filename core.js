@@ -667,6 +667,12 @@ class WindowManager {
         this.sharedResizeObserver.observe(content);
         this.resizeCallbacks.set(content, resizeCallback);
         
+        // Listen for widget resize events from manual resizing
+        content.addEventListener('widgetresized', (e) => {
+            const { width, height } = e.detail;
+            this.scaleWindowContent(content, width, height);
+        });
+        
         // Store reference for cleanup
         win._scalingState.content = content;
     }
@@ -676,7 +682,8 @@ class WindowManager {
      * Respects global SpectraScalingPolicy if defined
      */
     scaleWindowContent(content, containerWidth, containerHeight) {
-        const widgets = content.querySelectorAll('.widget-content, canvas, iframe, .app-container');
+        // Enhanced selector to catch all widget content types
+        const widgets = content.querySelectorAll('.widget-content, canvas, iframe, .app-container, div[id^="app"], .spectra-widget, [data-widget], form, table, .container');
         
         // Get policy settings (use global or defaults)
         const policy = window.SpectraScalingPolicy || {
