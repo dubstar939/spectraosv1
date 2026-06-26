@@ -470,7 +470,15 @@ class WindowManager {
                 </div>
             </div>
             <div class="wm-content" role="document" aria-label="${title} content">${contentHTML}</div>
-            <div class="wm-resize" aria-label="Resize window"></div>
+            <!-- Resize handles for all 8 directions -->
+            <div class="resize-handle n" aria-hidden="true"></div>
+            <div class="resize-handle s" aria-hidden="true"></div>
+            <div class="resize-handle e" aria-hidden="true"></div>
+            <div class="resize-handle w" aria-hidden="true"></div>
+            <div class="resize-handle ne" aria-hidden="true"></div>
+            <div class="resize-handle nw" aria-hidden="true"></div>
+            <div class="resize-handle se" aria-hidden="true"></div>
+            <div class="resize-handle sw" aria-hidden="true"></div>
         `;
 
         // Make window focusable for keyboard users
@@ -588,6 +596,12 @@ class WindowManager {
     setupResize(win, id) {
         const handles = win.querySelectorAll('.resize-handle');
         let isResizing = false, currentHandle, startX, startY, startW, startH, startL, startT;
+        
+        // Get app-specific minimum dimensions if available
+        const appId = win.dataset.appId;
+        const appConfig = AppRegistry.get(appId);
+        const minW = appConfig?.minWidth || 280;
+        const minH = appConfig?.minHeight || 180;
 
         handles.forEach(h => {
             h.addEventListener('mousedown', (e) => {
@@ -609,7 +623,6 @@ class WindowManager {
             if (!isResizing) return;
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
-            const minW = 280, minH = 180;
 
             if (currentHandle.includes('e')) {
                 win.style.width = Math.max(minW, startW + dx) + 'px';
@@ -696,13 +709,18 @@ class WindowManager {
             // Skip if widget has its own scaling
             if (widget.dataset.hasScaling) return;
 
-            const originalWidth = widget.dataset.originalWidth || widget.offsetWidth || widget.width;
-            const originalHeight = widget.dataset.originalHeight || widget.offsetHeight || widget.height;
-
-            // Store original dimensions
-            if (!widget.dataset.originalWidth) {
+            // Store original dimensions on first run
+            let originalWidth = widget.dataset.originalWidth;
+            let originalHeight = widget.dataset.originalHeight;
+            
+            if (!originalWidth) {
+                originalWidth = widget.offsetWidth || widget.width || 0;
+                originalHeight = widget.offsetHeight || widget.height || 0;
                 widget.dataset.originalWidth = originalWidth;
                 widget.dataset.originalHeight = originalHeight;
+            } else {
+                originalWidth = parseFloat(originalWidth);
+                originalHeight = parseFloat(originalHeight);
             }
 
             if (originalWidth === 0 || originalHeight === 0) return;

@@ -477,6 +477,27 @@ html, body {
 .resize-handle.se { bottom: 0; right: 0; width: 12px; height: 12px; cursor: se-resize; }
 .resize-handle.sw { bottom: 0; left: 0; width: 12px; height: 12px; cursor: sw-resize; }
 
+/* Enhanced resize handle visual feedback */
+.resize-handle:hover,
+.resize-handle:active {
+    background: rgba(0, 245, 212, 0.3);
+    box-shadow: 0 0 8px rgba(0, 245, 212, 0.5);
+}
+
+.resize-handle.n:hover, .resize-handle.s:hover {
+    height: 6px;
+}
+
+.resize-handle.e:hover, .resize-handle.w:hover {
+    width: 6px;
+}
+
+.resize-handle.ne:hover, .resize-handle.nw:hover,
+.resize-handle.se:hover, .resize-handle.sw:hover {
+    width: 16px;
+    height: 16px;
+}
+
 /* ═══════════════════════════════════════════
    APP LAUNCHER
    ═══════════════════════════════════════════ */
