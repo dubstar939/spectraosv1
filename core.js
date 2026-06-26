@@ -39,6 +39,8 @@ class VirtualFS {
             }
         };
         this.cwd = '/home/user';
+        this.saveDebounceTimer = null;
+        this.pathCache = new Map(); // Cache for resolved paths
         this.loadFromStorage();
     }
 
@@ -73,10 +75,19 @@ class VirtualFS {
     }
 
     resolve(path) {
-        if (path.startsWith('/')) {
-            return path.split('/').filter(Boolean);
+        // Check cache first for performance
+        const cacheKey = `${this.cwd}:${path}`;
+        if (this.pathCache.has(cacheKey)) {
+            return this.pathCache.get(cacheKey);
         }
-        return this.cwd.split('/').filter(Boolean).concat(path.split('/').filter(Boolean));
+        
+        const result = path.startsWith('/') 
+            ? path.split('/').filter(Boolean)
+            : this.cwd.split('/').filter(Boolean).concat(path.split('/').filter(Boolean));
+        
+        // Cache the result
+        this.pathCache.set(cacheKey, result);
+        return result;
     }
 
     normalize(parts) {
@@ -97,6 +108,13 @@ class VirtualFS {
         }
         return node;
     }
+    
+    /**
+     * Clear path cache - call when cwd changes or filesystem is modified
+     */
+    clearPathCache() {
+        this.pathCache.clear();
+    }
 
     getParent(path) {
         const parts = this.normalize(this.resolve(path));
@@ -113,6 +131,7 @@ class VirtualFS {
         if (!parent || !parent.children) return false;
         if (parent.children[name]) return false;
         parent.children[name] = { type: 'dir', name, children: {} };
+        this.clearPathCache(); // Clear cache after modification
         this.saveToStorage();
         return true;
     }
@@ -121,6 +140,7 @@ class VirtualFS {
         const { parent, name } = this.getParent(path);
         if (!parent || !parent.children) return false;
         parent.children[name] = { type: 'file', name, content };
+        this.clearPathCache(); // Clear cache after modification
         this.saveToStorage();
         return true;
     }
@@ -129,6 +149,7 @@ class VirtualFS {
         const { parent, name } = this.getParent(path);
         if (!parent || !parent.children || !parent.children[name]) return false;
         delete parent.children[name];
+        this.clearPathCache(); // Clear cache after modification
         this.saveToStorage();
         return true;
     }
@@ -157,6 +178,7 @@ class VirtualFS {
         const node = this.getNode(path);
         if (!node || node.type !== 'dir') return false;
         this.cwd = '/' + this.normalize(this.resolve(path)).join('/');
+        this.clearPathCache(); // Clear cache after cwd change
         return true;
     }
 
@@ -346,6 +368,9 @@ class WindowManager {
         this.visibleCanvases = new Set();
         this.renderLoopId = null;
         this.isRenderLoopRunning = false;
+        
+        // Performance: Selector cache to avoid repeated queries
+        this.selectorCache = new Map();
         
         // Initialize shared resources
         this.initSharedResources();
