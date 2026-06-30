@@ -1,2 +1,2 @@
 # No build artifacts, dependencies, or temporary files detected in changes
-# Only source/config files present (.md, .html)
+# Source files only (.md, .html) - no ignores needed
