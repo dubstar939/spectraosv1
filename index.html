@@ -30,6 +30,17 @@
       width: 100vw;
       user-select: none;
       line-height: 1.5;
+      /* CSS containment for better performance */
+      contain: layout style paint;
+    }
+    
+    /* Performance: Will-change for animated elements */
+    .wm-window {
+      will-change: transform, opacity, box-shadow;
+    }
+    
+    .dock-item {
+      will-change: transform;
     }
 
     /* Respect user motion preferences */
@@ -144,8 +155,16 @@
       z-index: 9999;
       transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       overflow-y: auto;
+      /* Performance: CSS containment for isolated rendering */
+      contain: layout style paint;
     }
     #launcher.open { transform: translateX(-50%) translateY(0); }
+    
+    /* Performance: Virtual scrolling preparation */
+    .launcher-grid {
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;
+      content-visibility: auto;
+    }
 
     .launcher-search {
       width: 100%; padding: 10px 15px; border-radius: 10px;
@@ -219,7 +238,11 @@
     }
 
     /* ===== WINDOW MANAGER ===== */
-    #wm-container { position: fixed; inset: 36px 0 70px 0; z-index: 100; pointer-events: none; }
+    #wm-container { 
+      position: fixed; inset: 36px 0 70px 0; z-index: 100; pointer-events: none;
+      /* Performance: CSS containment for window container */
+      contain: layout style paint;
+    }
     .wm-window {
       position: absolute; pointer-events: auto;
       background: var(--glass);
@@ -231,6 +254,8 @@
       overflow: hidden;
       transition: box-shadow 0.3s, transform 0.3s, opacity 0.2s;
       min-width: 400px; min-height: 300px;
+      /* Performance: Isolate rendering */
+      contain: layout style paint;
     }
     .wm-window.focused {
       box-shadow: 0 25px 70px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,255,136,0.3);
@@ -439,13 +464,13 @@
 
   <!-- Bottom Dock -->
   <nav id="dock" role="navigation" aria-label="Application dock">
-    <button class="dock-item" onclick="toggleLauncher()" title="App Launcher" aria-label="Open App Launcher">🚀</button>
+    <button class="dock-item" onclick="toggleLauncher()" title="App Launcher (Ctrl+K)" aria-label="Open App Launcher">🚀</button>
     <button class="dock-item" onclick="openApp('app01_codeeditor.html')" title="Code Editor" aria-label="Open Code Editor">💻</button>
-    <button class="dock-item" onclick="openApp('app02_terminal.html')" title="Terminal" aria-label="Open Terminal">🖥</button>
+    <button class="dock-item" onclick="openApp('app02_terminal.html')" title="Terminal (Ctrl+T)" aria-label="Open Terminal">🖥</button>
     <button class="dock-item" onclick="openApp('app10_filemanager.html')" title="Files" aria-label="Open File Manager">📁</button>
     <button class="dock-item" onclick="openApp('app11_systemmonitor.html')" title="System" aria-label="Open System Monitor">📊</button>
     <button class="dock-item" onclick="openApp('app32_spectraarcade.html')" title="Games" aria-label="Open Games">🎮</button>
-    <button class="dock-item" onclick="openApp('app39_notes.html')" title="Notes" aria-label="Open Notes">📝</button>
+    <button class="dock-item" onclick="openApp('app39_notes.html')" title="Notes (Ctrl+N)" aria-label="Open Notes">📝</button>
     <button class="dock-item" onclick="openApp('app41_musicplayer.html')" title="Music" aria-label="Open Music Player">🎵</button>
     <button class="dock-item" onclick="openApp('app45_settings.html')" title="Settings" aria-label="Open Settings">⚙️</button>
   </nav>
@@ -564,6 +589,10 @@
           minWindow(id);
         }
       });
+      
+      // Add resize observer for content scaling
+      setupWindowResizeObserver(w, id);
+      
       wm.appendChild(w);
       windows[id] = w;
       focusWindow(id);
@@ -580,9 +609,69 @@
       showNotif('Opened', app.name + ' is now running', app.icon);
       return id;
     }
+    
+    /**
+     * Setup ResizeObserver for automatic content scaling when window is resized
+     */
+    function setupWindowResizeObserver(windowEl, id) {
+      const content = windowEl.querySelector('.wm-content');
+      if (!content) return;
+      
+      // Store original iframe dimensions
+      const iframe = content.querySelector('iframe');
+      if (iframe && !iframe.dataset.originalWidth) {
+        iframe.dataset.originalWidth = '900';
+        iframe.dataset.originalHeight = '650';
+      }
+      
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          scaleIframeContent(iframe, width, height);
+        }
+      });
+      
+      resizeObserver.observe(content);
+      
+      // Store observer reference for cleanup
+      windowEl._resizeObserver = resizeObserver;
+    }
+    
+    /**
+     * Scale iframe content to fit the window using CSS transform
+     */
+    function scaleIframeContent(iframe, containerWidth, containerHeight) {
+      if (!iframe || !iframe.dataset.originalWidth) return;
+      
+      const originalWidth = parseFloat(iframe.dataset.originalWidth);
+      const originalHeight = parseFloat(iframe.dataset.originalHeight);
+      
+      if (originalWidth === 0 || originalHeight === 0) return;
+      
+      // Calculate scale factor
+      const scaleX = containerWidth / originalWidth;
+      const scaleY = containerHeight / originalHeight;
+      const scale = Math.min(scaleX, scaleY);
+      
+      // Clamp scale between reasonable bounds
+      const clampedScale = Math.max(0.25, Math.min(scale, 4));
+      
+      // Apply smooth scaling with transform
+      iframe.style.transformOrigin = 'top left';
+      iframe.style.transform = `scale(${clampedScale})`;
+      iframe.style.width = `${originalWidth * clampedScale}px`;
+      iframe.style.height = `${originalHeight * clampedScale}px`;
+    }
 
     function closeWindow(id) {
       const w = windows[id]; if (!w) return;
+      
+      // Cleanup ResizeObserver to prevent memory leaks
+      if (w._resizeObserver) {
+        w._resizeObserver.disconnect();
+        w._resizeObserver = null;
+      }
+      
       w.style.transition = 'transform 0.3s, opacity 0.3s';
       w.style.transform = 'scale(0.9)';
       w.style.opacity = '0';
@@ -880,20 +969,26 @@
         filteredApps = apps.filter(a => a.name.toLowerCase().includes(q) || a.cat.toLowerCase().includes(q));
       }
       
-      renderLauncherGrid(filteredApps);
-      
-      // Update screen reader count
-      const countText = filteredApps.length === 0 ? 'No apps found' : `${filteredApps.length} app${filteredApps.length !== 1 ? 's' : ''} found`;
-      document.getElementById('launcherResultsCount').textContent = countText;
-      
-      // Announce to screen readers
-      const announcement = document.createElement('div');
-      announcement.setAttribute('role', 'status');
-      announcement.setAttribute('aria-live', 'polite');
-      announcement.className = 'sr-only';
-      announcement.textContent = countText;
-      document.body.appendChild(announcement);
-      setTimeout(() => announcement.remove(), 1000);
+      // Debounce rendering for performance - wait 150ms before re-rendering
+      if (window._filterDebounceTimer) {
+        clearTimeout(window._filterDebounceTimer);
+      }
+      window._filterDebounceTimer = setTimeout(() => {
+        renderLauncherGrid(filteredApps);
+        
+        // Update screen reader count
+        const countText = filteredApps.length === 0 ? 'No apps found' : `${filteredApps.length} app${filteredApps.length !== 1 ? 's' : ''} found`;
+        document.getElementById('launcherResultsCount').textContent = countText;
+        
+        // Announce to screen readers
+        const announcement = document.createElement('div');
+        announcement.setAttribute('role', 'status');
+        announcement.setAttribute('aria-live', 'polite');
+        announcement.className = 'sr-only';
+        announcement.textContent = countText;
+        document.body.appendChild(announcement);
+        setTimeout(() => announcement.remove(), 1000);
+      }, 150);
     }
 
     // ===== CONTEXT MENU WITH KEYBOARD NAVIGATION =====
@@ -1077,6 +1172,17 @@
         if (e.key === 'n') { e.preventDefault(); openApp('app39_notes.html'); }
         if (e.key === 'e') { e.preventDefault(); openApp('app01_codeeditor.html'); }
         if (e.key === 'k') { e.preventDefault(); toggleLauncher(); } // Cmd/Ctrl+K to open launcher
+        // Window management shortcuts
+        if (e.key === 'w' && e.altKey) { 
+          e.preventDefault(); 
+          const activeWindowId = Object.keys(windows).find(id => windows[id].classList.contains('focused'));
+          if (activeWindowId) closeWindow(activeWindowId);
+        } // Ctrl+Alt+W to close active window
+        if (e.key === 'm' && e.altKey) { 
+          e.preventDefault(); 
+          const activeWindowId = Object.keys(windows).find(id => windows[id].classList.contains('focused'));
+          if (activeWindowId) minWindow(activeWindowId);
+        } // Ctrl+Alt+M to minimize active window
       }
       // Space or Enter to launch selected app in launcher
       if ((e.key === 'Enter' || e.key === ' ') && document.getElementById('launcher').classList.contains('open')) {
