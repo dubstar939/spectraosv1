@@ -1,1 +1,1 @@
-Nothing needs to be added to the .gitignore file since the changes only include HTML and Markdown files, which are source/config files and not build artifacts, dependencies, or temporary files.
+Nothing needs to be added to the .gitignore file based on the provided changes. The modification of 'core.js' is a source code file that should not be ignored.
