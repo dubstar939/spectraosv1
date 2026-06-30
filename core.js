@@ -900,8 +900,51 @@ class WindowManager {
     }
 
     loadFromStorage() {
-        // Window restoration is handled on a per-app basis
-        // since window content needs to be recreated by apps
+        // Restore window positions and states from localStorage
+        try {
+            const stored = this.storage.getItem(this.storageKey);
+            if (!stored) return;
+            
+            const windowData = JSON.parse(stored);
+            if (!Array.isArray(windowData)) return;
+            
+            // Store restoration data for apps to use when they launch
+            this.pendingRestorations = new Map();
+            
+            for (const data of windowData) {
+                this.pendingRestorations.set(data.appId, {
+                    position: {
+                        x: parseInt(data.style.left) || CONFIG.WINDOW.DEFAULT_X_OFFSET,
+                        y: parseInt(data.style.top) || CONFIG.WINDOW.DEFAULT_Y_OFFSET,
+                        width: parseInt(data.style.width) || CONFIG.WINDOW.DEFAULT_WIDTH,
+                        height: parseInt(data.style.height) || CONFIG.WINDOW.DEFAULT_HEIGHT
+                    },
+                    state: {
+                        minimized: data.minimized || false,
+                        maximized: data.maximized || false
+                    }
+                });
+            }
+            
+            console.log(`[WindowManager] Loaded ${windowData.length} window states for restoration`);
+        } catch (e) {
+            console.error('Failed to load window state:', e);
+        }
+    }
+    
+    /**
+     * Get pending restoration data for an app
+     * @param {string} appId - App ID to get restoration data for
+     * @returns {Object|null} - Restoration data or null if none exists
+     */
+    getPendingRestoration(appId) {
+        if (!this.pendingRestorations) return null;
+        const data = this.pendingRestorations.get(appId);
+        // Remove from pending after retrieval (one-time use)
+        if (data) {
+            this.pendingRestorations.delete(appId);
+        }
+        return data;
     }
 
     create(appId, title, icon, contentHTML, options = {}) {
@@ -911,10 +954,13 @@ class WindowManager {
         win.id = id;
         win.dataset.appId = appId;
 
-        const width = options.width || CONFIG.WINDOW.DEFAULT_WIDTH;
-        const height = options.height || CONFIG.WINDOW.DEFAULT_HEIGHT;
-        const x = options.x || (CONFIG.WINDOW.DEFAULT_X_OFFSET + (this.windows.size * CONFIG.WINDOW.CASCADE_STEP) % 200);
-        const y = options.y || (CONFIG.WINDOW.DEFAULT_Y_OFFSET + (this.windows.size * CONFIG.WINDOW.CASCADE_STEP) % 150);
+        // Check for saved window state (restoration)
+        const restoration = this.getPendingRestoration(appId);
+        
+        const width = options.width || (restoration?.position.width) || CONFIG.WINDOW.DEFAULT_WIDTH;
+        const height = options.height || (restoration?.position.height) || CONFIG.WINDOW.DEFAULT_HEIGHT;
+        const x = options.x || (restoration?.position.x) || (CONFIG.WINDOW.DEFAULT_X_OFFSET + (this.windows.size * CONFIG.WINDOW.CASCADE_STEP) % 200);
+        const y = options.y || (restoration?.position.y) || (CONFIG.WINDOW.DEFAULT_Y_OFFSET + (this.windows.size * CONFIG.WINDOW.CASCADE_STEP) % 150);
 
         win.style.width = width + 'px';
         win.style.height = height + 'px';
@@ -961,6 +1007,16 @@ class WindowManager {
         this.setupWindowEvents(win, id);
         this.focusWindow(id);
         this.updateActiveLabel(title);
+        
+        // Apply restored window state (minimized/maximized)
+        if (restoration?.state) {
+            if (restoration.state.maximized) {
+                this.toggleMaximize(id);
+            }
+            if (restoration.state.minimized && !restoration.state.maximized) {
+                this.minimizeWindow(id);
+            }
+        }
 
         // Initialize app if it has an init function
         const app = AppRegistry.get(appId);
@@ -1293,7 +1349,7 @@ class WindowManager {
      */
     cleanupWidgetScaling(win) {
         if (win._scalingState) {
-            // Unobserve from shared ResizeObserver
+            // Unobserve from shared ResizeObserver to prevent memory leak
             if (win._scalingState.content) {
                 this.sharedResizeObserver.unobserve(win._scalingState.content);
                 this.resizeCallbacks.delete(win._scalingState.content);
@@ -1303,6 +1359,13 @@ class WindowManager {
             }
             win._scalingState = null;
         }
+        
+        // Clear any pending canvas scales to free memory
+        const canvases = win.querySelectorAll('canvas');
+        canvases.forEach(canvas => {
+            canvas._pendingScale = null;
+            canvas._needsRenderUpdate = false;
+        });
     }
 
     focusWindow(id) {
@@ -1509,6 +1572,9 @@ const AppRegistry = new AppRegistryClass();
 // SYSTEM INITIALIZATION
 // ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
+    // Load saved window states for restoration on app launch
+    WM.loadFromStorage();
+    
     // Clock
     function updateClock() {
         const now = new Date();
