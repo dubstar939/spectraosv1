@@ -1,7 +1,82 @@
 /* ═══════════════════════════════════════════
    SPECTRAOS — Core System
    Window Manager, Filesystem, App Registry
+   
+   @module SpectraOS
+   @version 2.0.0
    ═══════════════════════════════════════════ */
+
+// ═══════════════════════════════════════════
+// CONFIGURATION CONSTANTS
+// Replace magic numbers with named constants
+// ═══════════════════════════════════════════
+
+/** @type {Object} */
+const CONFIG = {
+    // Window defaults
+    WINDOW: {
+        DEFAULT_WIDTH: 1200,
+        DEFAULT_HEIGHT: 800,
+        DEFAULT_X_OFFSET: 50,
+        DEFAULT_Y_OFFSET: 50,
+        CASCADE_STEP: 30,
+        MIN_WIDTH: 280,
+        MIN_HEIGHT: 180,
+        Z_INDEX_BASE: 200
+    },
+    
+    // Timing constants (milliseconds)
+    TIMING: {
+        FS_SAVE_DEBOUNCE: 1000,
+        NOTIF_SAVE_DEBOUNCE: 500,
+        WINDOW_SAVE_DEBOUNCE: 300,
+        TOAST_AUTO_HIDE: 5000,
+        TOAST_FADE_DURATION: 300,
+        WINDOW_CLOSE_DELAY: 200,
+        ERROR_RESET_INTERVAL: 60000,
+        LOCK_CHECK_INTERVAL: 50,
+        MAX_LOCK_ATTEMPTS: 10,
+        APP_INIT_DELAY: 10,
+        FM_OPEN_DELAY: 100,
+        BOOT_NOTIF_DELAY: 800
+    },
+    
+    // Limits
+    LIMITS: {
+        MAX_NOTIFICATIONS: 50,
+        MAX_ERRORS_BEFORE_WARNING: 5,
+        MAX_WINDOWS: 100
+    },
+    
+    // Scaling policy defaults
+    SCALING: {
+        MIN_SCALE: 0.25,
+        MAX_SCALE: 4,
+        PRESERVE_ASPECT_RATIO: true
+    },
+    
+    // Cache settings
+    CACHE: {
+        ENABLE_PATH_CACHE: true,
+        ENABLE_DOM_CACHE: true,
+        ENABLE_SELECTOR_CACHE: true
+    },
+    
+    // Accessibility
+    A11Y: {
+        LAUNCHER_COLUMNS: 5,
+        FOCUS_VISIBLE_TIMEOUT: 3000
+    }
+};
+
+// Freeze config to prevent runtime modifications
+Object.freeze(CONFIG.WINDOW);
+Object.freeze(CONFIG.TIMING);
+Object.freeze(CONFIG.LIMITS);
+Object.freeze(CONFIG.SCALING);
+Object.freeze(CONFIG.CACHE);
+Object.freeze(CONFIG.A11Y);
+Object.freeze(CONFIG);
 
 // ═══════════════════════════════════════════
 // SECURITY: HTML Entity Encoder for XSS Prevention
@@ -38,9 +113,19 @@ const SecurityUtils = {
 
 // ═══════════════════════════════════════════
 // STORAGE MANAGER: Prevent race conditions with mutex lock
+// Uses dependency injection pattern for testability
 // ═══════════════════════════════════════════
+/**
+ * StorageManager class for safe localStorage operations
+ * @class
+ */
 class StorageManager {
-    constructor() {
+    /**
+     * Create a StorageManager instance
+     * @param {Object} [storage=localStorage] - Storage backend (for testing)
+     */
+    constructor(storage = localStorage) {
+        this.storage = storage;
         this.writeLocks = new Map();
         this.writeQueue = new Map();
     }
@@ -59,7 +144,7 @@ class StorageManager {
         // Wait for lock to be released with timeout
         return new Promise((resolve) => {
             let attempts = 0;
-            const maxAttempts = 10;
+            const maxAttempts = CONFIG.TIMING.MAX_LOCK_ATTEMPTS;
             const checkLock = () => {
                 if (!this.writeLocks.get(key)) {
                     this.writeLocks.set(key, true);
@@ -69,7 +154,7 @@ class StorageManager {
                     resolve(false);
                 } else {
                     attempts++;
-                    setTimeout(checkLock, 50);
+                    setTimeout(checkLock, CONFIG.TIMING.LOCK_CHECK_INTERVAL);
                 }
             };
             checkLock();
@@ -115,7 +200,7 @@ class StorageManager {
                 });
             }
             
-            localStorage.setItem(key, value);
+            this.storage.setItem(key, value);
             this.releaseLock(key);
             return true;
         } catch (e) {
@@ -132,7 +217,7 @@ class StorageManager {
      */
     getItem(key) {
         try {
-            return localStorage.getItem(key);
+            return this.storage.getItem(key);
         } catch (e) {
             console.error('Storage read failed:', e);
             return null;
@@ -140,15 +225,21 @@ class StorageManager {
     }
 }
 
+// Create singleton instance with default localStorage
 const storageManager = new StorageManager();
 
 // ═══════════════════════════════════════════
 // ERROR BOUNDARY: Prevent app failures from breaking OS
+// Uses centralized error handling with configurable limits
 // ═══════════════════════════════════════════
+/**
+ * ErrorBoundary class for catching and handling errors gracefully
+ * @class
+ */
 class ErrorBoundary {
     constructor() {
         this.errorHandlers = [];
-        this.maxErrors = 5;
+        this.maxErrors = CONFIG.LIMITS.MAX_ERRORS_BEFORE_WARNING;
         this.errorCount = 0;
         this.lastErrorTime = 0;
         
@@ -227,8 +318,8 @@ class ErrorBoundary {
     handleError(error, context = 'unknown') {
         const now = Date.now();
         
-        // Reset error count after 60 seconds of no errors
-        if (now - this.lastErrorTime > 60000) {
+        // Reset error count after configured interval of no errors
+        if (now - this.lastErrorTime > CONFIG.TIMING.ERROR_RESET_INTERVAL) {
             this.errorCount = 0;
         }
         
@@ -269,7 +360,7 @@ class ErrorBoundary {
             warning.style.display = 'block';
             setTimeout(() => {
                 warning.style.display = 'none';
-            }, 5000);
+            }, CONFIG.TIMING.TOAST_AUTO_HIDE);
         } else if (notifSystem) {
             notifSystem.add('System Warning', 'Multiple errors detected. Some features may be unstable.', '⚠️', 'warning');
         }
@@ -288,9 +379,19 @@ const errorBoundary = new ErrorBoundary();
 
 // ═══════════════════════════════════════════
 // VIRTUAL FILESYSTEM
+// Uses dependency injection and configuration constants
 // ═══════════════════════════════════════════
+/**
+ * VirtualFS - In-memory filesystem with localStorage persistence
+ * @class
+ */
 class VirtualFS {
-    constructor() {
+    /**
+     * Create a VirtualFS instance
+     * @param {Object} [storage=localStorage] - Storage backend (for testing)
+     */
+    constructor(storage = localStorage) {
+        this.storage = storage;
         this.storageKey = 'spectraos-fs-data';
         this.root = {
             type: 'dir',
@@ -337,16 +438,16 @@ class VirtualFS {
         this.saveDebounceTimer = setTimeout(() => {
             try {
                 const data = JSON.stringify(this.root);
-                localStorage.setItem(this.storageKey, data);
+                this.storage.setItem(this.storageKey, data);
             } catch (e) {
                 console.error('Failed to save filesystem state:', e);
             }
-        }, 1000);
+        }, CONFIG.TIMING.FS_SAVE_DEBOUNCE);
     }
 
     loadFromStorage() {
         try {
-            const data = localStorage.getItem(this.storageKey);
+            const data = this.storage.getItem(this.storageKey);
             if (data) {
                 const parsed = JSON.parse(data);
                 if (parsed && parsed.type === 'dir') {
@@ -491,9 +592,19 @@ const fs = new VirtualFS();
 
 // ═══════════════════════════════════════════
 // NOTIFICATION SYSTEM
+// Uses configuration constants and security utilities
 // ═══════════════════════════════════════════
+/**
+ * NotificationSystem - Desktop notification manager
+ * @class
+ */
 class NotificationSystem {
-    constructor() {
+    /**
+     * Create a NotificationSystem instance
+     * @param {StorageManager} [storageMgr=storageManager] - Storage manager for persistence
+     */
+    constructor(storageMgr = storageManager) {
+        this.storageManager = storageMgr;
         this.storageKey = 'spectraos-notifications';
         this.notifications = [];
         this.listeners = [];
@@ -513,23 +624,23 @@ class NotificationSystem {
         
         this.pendingChanges = true;
         
-        // Debounce localStorage writes by 500ms
+        // Debounce localStorage writes by configured interval
         this.saveDebounceTimer = setTimeout(async () => {
             if (!this.pendingChanges) return;
             
             try {
                 const data = JSON.stringify(this.notifications);
-                await storageManager.setItem(this.storageKey, data);
+                await this.storageManager.setItem(this.storageKey, data);
                 this.pendingChanges = false;
             } catch (e) {
                 console.error('Failed to save notifications:', e);
             }
-        }, 500);
+        }, CONFIG.TIMING.NOTIF_SAVE_DEBOUNCE);
     }
 
     loadFromStorage() {
         try {
-            const data = storageManager.getItem(this.storageKey);
+            const data = this.storageManager.getItem(this.storageKey);
             if (data) {
                 const parsed = JSON.parse(data);
                 if (Array.isArray(parsed)) {
@@ -558,7 +669,7 @@ class NotificationSystem {
             unread: true
         };
         this.notifications.unshift(notif);
-        if (this.notifications.length > 50) this.notifications.pop();
+        if (this.notifications.length > CONFIG.LIMITS.MAX_NOTIFICATIONS) this.notifications.pop();
         this.saveToStorage();
         this.updateBadge();
         this.render();
@@ -642,13 +753,13 @@ class NotificationSystem {
 
         area.appendChild(toast);
 
-        // Auto-remove after 5 seconds
+        // Auto-remove after configured timeout
         setTimeout(() => {
             toast.style.transition = 'opacity 0.3s, transform 0.3s';
             toast.style.opacity = '0';
             toast.style.transform = 'translateX(100%)';
-            setTimeout(() => toast.remove(), 300);
-        }, 5000);
+            setTimeout(() => toast.remove(), CONFIG.TIMING.TOAST_FADE_DURATION);
+        }, CONFIG.TIMING.TOAST_AUTO_HIDE);
     }
 
     formatTime(d) {
@@ -667,12 +778,22 @@ const notifSystem = new NotificationSystem();
 
 // ═══════════════════════════════════════════
 // WINDOW MANAGER
+// Uses configuration constants and dependency injection
 // ═══════════════════════════════════════════
+/**
+ * WindowManager - Manages application windows
+ * @class
+ */
 class WindowManager {
-    constructor() {
+    /**
+     * Create a WindowManager instance
+     * @param {Object} [storage=localStorage] - Storage backend (for testing)
+     */
+    constructor(storage = localStorage) {
+        this.storage = storage;
         this.storageKey = 'spectraos-windows';
         this.windows = new Map();
-        this.zIndex = 200;
+        this.zIndex = CONFIG.WINDOW.Z_INDEX_BASE;
         this.activeWindow = null;
         this.windowLayer = document.getElementById('window-layer');
         
@@ -771,11 +892,11 @@ class WindowManager {
                         zIndex: win.element.style.zIndex
                     }
                 }));
-                localStorage.setItem(this.storageKey, JSON.stringify(windowData));
+                this.storage.setItem(this.storageKey, JSON.stringify(windowData));
             } catch (e) {
                 console.error('Failed to save window state:', e);
             }
-        }, 300);
+        }, CONFIG.TIMING.WINDOW_SAVE_DEBOUNCE);
     }
 
     loadFromStorage() {
@@ -790,10 +911,10 @@ class WindowManager {
         win.id = id;
         win.dataset.appId = appId;
 
-        const width = options.width || 1200;
-        const height = options.height || 800;
-        const x = options.x || (50 + (this.windows.size * 30) % 200);
-        const y = options.y || (50 + (this.windows.size * 30) % 150);
+        const width = options.width || CONFIG.WINDOW.DEFAULT_WIDTH;
+        const height = options.height || CONFIG.WINDOW.DEFAULT_HEIGHT;
+        const x = options.x || (CONFIG.WINDOW.DEFAULT_X_OFFSET + (this.windows.size * CONFIG.WINDOW.CASCADE_STEP) % 200);
+        const y = options.y || (CONFIG.WINDOW.DEFAULT_Y_OFFSET + (this.windows.size * CONFIG.WINDOW.CASCADE_STEP) % 150);
 
         win.style.width = width + 'px';
         win.style.height = height + 'px';
@@ -844,7 +965,7 @@ class WindowManager {
         // Initialize app if it has an init function
         const app = AppRegistry.get(appId);
         if (app && app.init) {
-            setTimeout(() => app.init(win.querySelector('.wm-content'), id), 10);
+            setTimeout(() => app.init(win.querySelector('.wm-content'), id), CONFIG.TIMING.APP_INIT_DELAY);
         }
 
         return id;
@@ -944,8 +1065,8 @@ class WindowManager {
         // Get app-specific minimum dimensions if available
         const appId = win.dataset.appId;
         const appConfig = AppRegistry.get(appId);
-        const minW = appConfig?.minWidth || 280;
-        const minH = appConfig?.minHeight || 180;
+        const minW = appConfig?.minWidth || CONFIG.WINDOW.MIN_WIDTH;
+        const minH = appConfig?.minHeight || CONFIG.WINDOW.MIN_HEIGHT;
 
         handles.forEach(h => {
             h.addEventListener('mousedown', (e) => {
@@ -1045,9 +1166,9 @@ class WindowManager {
         
         // Get policy settings (use global or defaults)
         const policy = window.SpectraScalingPolicy || {
-            preserveAspect: true,
-            minScale: 0.25,
-            maxScale: 4
+            preserveAspect: CONFIG.SCALING.PRESERVE_ASPECT_RATIO,
+            minScale: CONFIG.SCALING.MIN_SCALE,
+            maxScale: CONFIG.SCALING.MAX_SCALE
         };
         
         // Check if window is minimized to throttle canvas rendering
@@ -1265,7 +1386,7 @@ class WindowManager {
                 this.activeWindow = null;
                 this.updateActiveLabel('Desktop');
             }
-        }, 200);
+        }, CONFIG.TIMING.WINDOW_CLOSE_DELAY);
     }
 
     updateActiveLabel(title) {
@@ -1428,7 +1549,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             tile.addEventListener('keydown', (e) => {
-                const columns = 5; // Match CSS grid
+                const columns = CONFIG.A11Y.LAUNCHER_COLUMNS; // Match CSS grid
                 switch(e.key) {
                     case 'ArrowRight':
                         e.preventDefault();
@@ -1620,7 +1741,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             fm.element.querySelector('.fm-path').value = path;
                             fm.element.querySelector('.fm-path').dispatchEvent(new Event('change'));
                         }
-                    }, 100);
+                    }, CONFIG.TIMING.FM_OPEN_DELAY);
                 }
             });
         });
@@ -1630,5 +1751,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // Boot notification
     setTimeout(() => {
         notifSystem.add('Welcome to SpectraOS', 'Your premium cyber-minimalist desktop is ready. 50+ apps available.', '✨', 'system');
-    }, 800);
+    }, CONFIG.TIMING.BOOT_NOTIF_DELAY);
 });
