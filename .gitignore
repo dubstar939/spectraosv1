@@ -1,1 +1,2 @@
-Nothing needs to be added to .gitignore since the changes only include source/config files (.md and .js) without any build artifacts, dependencies, or temporary files that require ignoring.
+# No build artifacts, dependencies, or temporary files detected in changes
+# Only source/config files present (.md, .html)
