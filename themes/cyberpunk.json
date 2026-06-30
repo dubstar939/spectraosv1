@@ -1,0 +1,27 @@
+{
+  "id": "cyberpunk",
+  "name": "Cyberpunk",
+  "icon": "🤖",
+  "preview": "#00ff88",
+  "description": "Futuristic cyberpunk aesthetic with neon accents and sharp edges",
+  "version": "1.0.0",
+  "cssVars": {
+    "--window-border-radius": "0px",
+    "--window-border-width": "2px",
+    "--window-shadow": "0 0 20px rgba(0, 255, 136, 0.3)",
+    "--window-backdrop-blur": "5px",
+    "--titlebar-height": "40px",
+    "--titlebar-bg": "rgba(10, 10, 20, 0.98)",
+    "--control-style": "square",
+    "--control-size": "14px",
+    "--control-spacing": "8px",
+    "--accent": "#00ff88",
+    "--accent2": "#ff00ff",
+    "--bg": "#0a0a14",
+    "--glass": "rgba(10, 10, 20, 0.95)",
+    "--glass-border": "rgba(0, 255, 136, 0.3)",
+    "--text-primary": "#ffffff",
+    "--text-secondary": "#00ff88",
+    "--focus-ring": "rgba(0, 255, 136, 0.8)"
+  }
+}

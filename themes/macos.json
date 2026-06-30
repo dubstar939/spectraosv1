@@ -1,0 +1,27 @@
+{
+  "id": "macos",
+  "name": "macOS",
+  "icon": "🍎",
+  "preview": "#007aff",
+  "description": "Classic macOS design with traffic light controls and smooth aesthetics",
+  "version": "1.0.0",
+  "cssVars": {
+    "--window-border-radius": "12px",
+    "--window-border-width": "1px",
+    "--window-shadow": "0 25px 80px rgba(0,0,0,0.5)",
+    "--window-backdrop-blur": "25px",
+    "--titlebar-height": "38px",
+    "--titlebar-bg": "rgba(30, 30, 30, 0.6)",
+    "--control-style": "circle",
+    "--control-size": "12px",
+    "--control-spacing": "8px",
+    "--accent": "#007aff",
+    "--accent2": "#5ac8fa",
+    "--bg": "#1e1e1e",
+    "--glass": "rgba(30, 30, 30, 0.75)",
+    "--glass-border": "rgba(255, 255, 255, 0.1)",
+    "--text-primary": "#ffffff",
+    "--text-secondary": "#a0a0a0",
+    "--focus-ring": "rgba(0, 122, 255, 0.5)"
+  }
+}
