@@ -266,6 +266,31 @@
     }
     .wm-window.minimized { transform: scale(0.1) translateY(500px); opacity: 0; pointer-events: none; }
     .wm-window.maximized { top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0; }
+    
+    /* Fullscreen mode - true viewport filling with hidden controls */
+    .wm-window.fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+      z-index: 99999 !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    
+    .wm-window.fullscreen .wm-titlebar {
+      display: none !important;
+    }
+    
+    .wm-window.fullscreen .wm-resize {
+      display: none !important;
+    }
+    
+    .wm-window.fullscreen .wm-content {
+      height: 100% !important;
+    }
 
     .wm-titlebar {
       height: 36px; display: flex; align-items: center; justify-content: space-between;
@@ -573,7 +598,7 @@
           </div>
           <div class="wm-controls" role="group" aria-label="Window actions">
             <button class="wm-btn min" onclick="minWindow('${id}')" title="Minimize" aria-label="Minimize ${app.name} window">−</button>
-            <button class="wm-btn max" onclick="maxWindow('${id}')" title="Maximize" aria-label="Maximize ${app.name} window">□</button>
+            <button class="wm-btn max" onclick="toggleFullscreen('${id}')" title="Fullscreen" aria-label="Toggle fullscreen for ${app.name} window">⛶</button>
             <button class="wm-btn close" onclick="closeWindow('${id}')" title="Close" aria-label="Close ${app.name} window">×</button>
           </div>
         </div>
@@ -586,7 +611,12 @@
       w.addEventListener('mousedown', () => focusWindow(id));
       w.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-          minWindow(id);
+          // Exit fullscreen if active, otherwise minimize
+          if (w.classList.contains('fullscreen')) {
+            toggleFullscreen(id);
+          } else {
+            minWindow(id);
+          }
         }
       });
       
@@ -627,6 +657,17 @@
       const resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           const { width, height } = entry.contentRect;
+          
+          // Skip scaling in fullscreen mode - content should fill viewport at native resolution
+          if (windowEl.classList.contains('fullscreen')) {
+            if (iframe) {
+              iframe.style.transform = 'none';
+              iframe.style.width = '100%';
+              iframe.style.height = '100%';
+            }
+            return;
+          }
+          
           scaleIframeContent(iframe, width, height);
         }
       });
@@ -696,14 +737,28 @@
         focusWindow(id);
       }
     }
-    function maxWindow(id) {
+    
+    // Fullscreen toggle - replaces maximize functionality
+    function toggleFullscreen(id) {
       const w = windows[id]; if (!w) return;
-      w.classList.toggle('maximized');
       const btn = w.querySelector('.wm-btn.max');
-      const isMaximized = w.classList.contains('maximized');
-      btn.setAttribute('aria-label', isMaximized ? 'Restore window' : 'Maximize window');
-      btn.textContent = isMaximized ? '❐' : '□';
+      const isFullscreen = w.classList.contains('fullscreen');
+      
+      if (isFullscreen) {
+        // Exit fullscreen - restore previous state
+        w.classList.remove('fullscreen');
+        btn.setAttribute('aria-label', `Toggle fullscreen for ${w.querySelector('.wm-title span:last-child')?.textContent || 'window'}`);
+        btn.textContent = '⛶';
+        btn.title = 'Fullscreen';
+      } else {
+        // Enter fullscreen
+        w.classList.add('fullscreen');
+        btn.setAttribute('aria-label', `Exit fullscreen for ${w.querySelector('.wm-title span:last-child')?.textContent || 'window'}`);
+        btn.textContent = '❐';
+        btn.title = 'Exit Fullscreen';
+      }
     }
+    
     function focusWindow(id) {
       const w = windows[id]; if (!w) return;
       // Only update classes and attributes for the focused window and previously focused window
@@ -735,7 +790,7 @@
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       const w = windows[dragId]; 
-      if (!w || w.classList.contains('maximized')) return;
+      if (!w || w.classList.contains('maximized') || w.classList.contains('fullscreen')) return;
       w.style.left = (w.offsetLeft + clientX - dragOffX) + 'px';
       w.style.top = (w.offsetTop + clientY - dragOffY) + 'px';
       dragOffX = clientX; 
@@ -754,12 +809,14 @@
     // Resize with Touch Support
     let resizeId = null, resizeX = 0, resizeY = 0, startWidth = 0, startHeight = 0;
     function startResize(e, id) {
+      const w = windows[id];
+      // Prevent resize if window is fullscreen or maximized
+      if (w && (w.classList.contains('fullscreen') || w.classList.contains('maximized'))) return;
       resizeId = id; 
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       resizeX = clientX; 
       resizeY = clientY;
-      const w = windows[resizeId];
       if (w) {
         startWidth = w.offsetWidth;
         startHeight = w.offsetHeight;
