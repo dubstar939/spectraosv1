@@ -1,46 +1,41 @@
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+*.class
+*.exe
+*.dll
+*.so
+*.a
+*.out
 
 # Dependencies
 node_modules/
 venv/
 .venv/
-__pycache__/
-.mypy_cache/
-.pytest_cache/
-target/
-.gradle/
+.env
+.env.local
+.env.*
 
-# Compiled and build artifacts
-*.pyc
-*.class
-*.o
-*.exe
-*.dll
-*.so
-*.a
-*.obj
-*.out
-dist/
-build/
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
 
-# System files
-.DS_Store
-Thumbs.db
+# Editors
+.vscode/
+.idea/
+
+# Coverage
 coverage/
 htmlcov/
 .coverage
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Compressed files
 *.zip
@@ -65,3 +60,124 @@ htmlcov/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+
+# Python specific
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+.Python
+*.egg-info/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.hypothesis/
+.coverage
+.coverage.*
+.cache/
+.pyre/
+.pytype/
+cython_debug/
+
+# Node.js specific
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+node_modules/
+jspm_packages/
+web_modules/
+*.tsbuildinfo
+.nyc_output
+coverage/
+.nyc_output/
+istanbul/
+.lintcache/
+.auto-ts-node/
+.ts-node/
+
+# Java specific
+*.class
+*.jar
+*.war
+*.ear
+target/
+.gradle/
+build/
+!build.xml
+!build.gradle
+!pom.xml
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+*.iml
+*.ipr
+*.iws
+.idea/
+*.orig
+*.rej
+*.bak
+*.tmp
+*~
+#*#
+\#*\#
+*.log
+*.cache
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+*.iml
+*.ipr
+*.iws
+.idea/
+*.orig
+*.rej
+*.bak
+*.tmp
+*~
+#*#
+\#*\#
+*.log
+*.cache
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+*.iml
+*.ipr
+*.iws
+.idea/
+*.orig
+*.rej
+*.bak
+*.tmp
+*~
+#*#
+\#*\#
+*.log
+*.cache
+*.swp
+*.swo
+*~
