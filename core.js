@@ -1429,6 +1429,11 @@ class WindowManager {
         const win = this.windows.get(id);
         if (!win) return;
         
+        // Cleanup IPC subscriptions for this window
+        if (typeof ipc !== 'undefined') {
+            ipc.cleanup(id);
+        }
+        
         // Cleanup event listeners to prevent memory leaks
         if (win.element._cleanupListeners) {
             win.element._cleanupListeners();
@@ -1515,6 +1520,626 @@ class WindowManager {
 }
 
 const WM = new WindowManager();
+
+// ═══════════════════════════════════════════
+// ARCHITECTURE: EVENT BUS SYSTEM
+// Decoupled component communication via pub/sub pattern
+// ═══════════════════════════════════════════
+/**
+ * EventBus - Centralized event system for decoupled communication
+ * @class
+ */
+class EventBus {
+    constructor() {
+        this.events = new Map();
+    }
+
+    /**
+     * Subscribe to an event
+     * @param {string} event - Event name
+     * @param {Function} callback - Callback function
+     * @returns {Function} Unsubscribe function
+     */
+    on(event, callback) {
+        if (!this.events.has(event)) {
+            this.events.set(event, new Set());
+        }
+        this.events.get(event).add(callback);
+        
+        // Return unsubscribe function
+        return () => this.off(event, callback);
+    }
+
+    /**
+     * Unsubscribe from an event
+     * @param {string} event - Event name
+     * @param {Function} callback - Callback function to remove
+     */
+    off(event, callback) {
+        if (this.events.has(event)) {
+            this.events.get(event).delete(callback);
+        }
+    }
+
+    /**
+     * Emit an event to all subscribers
+     * @param {string} event - Event name
+     * @param {*} [data] - Optional data to pass to callbacks
+     */
+    emit(event, data) {
+        if (this.events.has(event)) {
+            this.events.get(event).forEach(callback => {
+                try {
+                    callback(data);
+                } catch (error) {
+                    console.error(`EventBus: Error in ${event} handler:`, error);
+                }
+            });
+        }
+    }
+
+    /**
+     * Subscribe to an event once (auto-unsubscribe after first trigger)
+     * @param {string} event - Event name
+     * @param {Function} callback - Callback function
+     */
+    once(event, callback) {
+        const wrapper = (data) => {
+            this.off(event, wrapper);
+            callback(data);
+        };
+        this.on(event, wrapper);
+    }
+
+    /**
+     * Clear all listeners for an event or all events
+     * @param {string} [event] - Event name (optional, clears all if not provided)
+     */
+    clear(event) {
+        if (event) {
+            this.events.delete(event);
+        } else {
+            this.events.clear();
+        }
+    }
+
+    /**
+     * Get number of listeners for an event
+     * @param {string} event - Event name
+     * @returns {number} Number of listeners
+     */
+    listenerCount(event) {
+        return this.events.has(event) ? this.events.get(event).size : 0;
+    }
+}
+
+const eventBus = new EventBus();
+
+// ═══════════════════════════════════════════
+// ARCHITECTURE: IPC LAYER
+// Proper inter-process communication between apps and system
+// ═══════════════════════════════════════════
+/**
+ * IPCLayer - Secure communication channel between apps and system services
+ * Provides sandboxed messaging with validation and rate limiting
+ * @class
+ */
+class IPCLayer {
+    constructor(windowManager, fileSystem, notificationSystem) {
+        this.wm = windowManager;
+        this.fs = fileSystem;
+        this.notif = notificationSystem;
+        this.handlers = new Map();
+        this.rateLimits = new Map();
+        this.messageQueue = new Map();
+        
+        // Register built-in handlers
+        this.registerBuiltInHandlers();
+    }
+
+    /**
+     * Register built-in IPC handlers for common operations
+     */
+    registerBuiltInHandlers() {
+        // Window management operations
+        this.register('window:minimize', (data, windowId) => {
+            const win = this.wm.windows.get(windowId);
+            if (win) this.wm.minimizeWindow(windowId);
+            return true;
+        });
+
+        this.register('window:maximize', (data, windowId) => {
+            const win = this.wm.windows.get(windowId);
+            if (win) this.wm.maximizeWindow(windowId);
+            return true;
+        });
+
+        this.register('window:close', (data, windowId) => {
+            const win = this.wm.windows.get(windowId);
+            if (win) this.wm.closeWindow(windowId);
+            return true;
+        });
+
+        this.register('window:focus', (data, windowId) => {
+            this.wm.focusWindow(windowId);
+            return true;
+        });
+
+        // File system operations (sandboxed)
+        this.register('fs:read', async (data, windowId) => {
+            const { path } = data;
+            if (!this.validatePath(path, windowId)) {
+                throw new Error('Access denied: Invalid path');
+            }
+            const node = this.fs.getNode(path);
+            return node ? node.content : null;
+        });
+
+        this.register('fs:write', async (data, windowId) => {
+            const { path, content } = data;
+            if (!this.validatePath(path, windowId)) {
+                throw new Error('Access denied: Invalid path');
+            }
+            return this.fs.writeFile(path, content);
+        });
+
+        this.register('fs:list', (data, windowId) => {
+            const { path } = data;
+            if (!this.validatePath(path, windowId)) {
+                throw new Error('Access denied: Invalid path');
+            }
+            return this.fs.ls(path);
+        });
+
+        // Notification operations
+        this.register('notification:send', (data, windowId) => {
+            const { title, message, icon = '📬' } = data;
+            const win = this.wm.windows.get(windowId);
+            const appName = win ? win.title : 'Unknown App';
+            this.notif.add(title, message, icon, appName);
+            return true;
+        }, { rateLimit: 1000 }); // 1 second rate limit
+
+        // Event bus integration
+        this.register('event:emit', (data) => {
+            const { event, payload } = data;
+            eventBus.emit(event, payload);
+            return true;
+        });
+
+        this.register('event:subscribe', (data, windowId) => {
+            const { event } = data;
+            const callback = (payload) => {
+                // Forward event to window via postMessage
+                const win = this.wm.windows.get(windowId);
+                if (win && win.iframe && win.iframe.contentWindow) {
+                    win.iframe.contentWindow.postMessage({
+                        type: 'IPC_EVENT',
+                        event,
+                        payload
+                    }, '*');
+                }
+            };
+            
+            // Store subscription for cleanup
+            if (!this.subscriptions.has(windowId)) {
+                this.subscriptions.set(windowId, []);
+            }
+            const unsubscribe = eventBus.on(event, callback);
+            this.subscriptions.get(windowId).push(unsubscribe);
+            return true;
+        });
+    }
+
+    /**
+     * Subscriptions map for cleanup on window close
+     * @type {Map<string, Array<Function>>}
+     */
+    subscriptions = new Map();
+
+    /**
+     * Validate file system path access (sandboxing)
+     * @param {string} path - File path to validate
+     * @param {string} windowId - Window ID requesting access
+     * @returns {boolean} True if access is allowed
+     */
+    validatePath(path, windowId) {
+        // Basic sandboxing: restrict to /home/user directory
+        const sanitized = path.replace(/\.\./g, '');
+        return sanitized.startsWith('/home/user') || 
+               sanitized.startsWith('/public') ||
+               sanitized.startsWith('/tmp');
+    }
+
+    /**
+     * Register a new IPC handler
+     * @param {string} channel - Channel name (e.g., 'app:custom')
+     * @param {Function} handler - Handler function
+     * @param {Object} [options] - Handler options
+     * @param {number} [options.rateLimit] - Rate limit in milliseconds
+     */
+    register(channel, handler, options = {}) {
+        this.handlers.set(channel, { handler, options });
+    }
+
+    /**
+     * Send a message through IPC
+     * @param {string} channel - Channel name
+     * @param {*} data - Message data
+     * @param {string} windowId - Source window ID
+     * @returns {Promise<*>} Response from handler
+     */
+    async send(channel, data, windowId) {
+        const handlerInfo = this.handlers.get(channel);
+        
+        if (!handlerInfo) {
+            throw new Error(`IPC: No handler registered for channel '${channel}'`);
+        }
+
+        // Rate limiting
+        if (handlerInfo.options.rateLimit) {
+            const now = Date.now();
+            const lastCall = this.rateLimits.get(channel) || 0;
+            const minInterval = handlerInfo.options.rateLimit;
+            
+            if (now - lastCall < minInterval) {
+                // Queue the message if rate limited
+                if (!this.messageQueue.has(channel)) {
+                    this.messageQueue.set(channel, []);
+                }
+                return new Promise((resolve) => {
+                    this.messageQueue.get(channel).push({ data, windowId, resolve });
+                });
+            }
+            this.rateLimits.set(channel, now);
+        }
+
+        try {
+            const result = await handlerInfo.handler(data, windowId);
+            return result;
+        } catch (error) {
+            console.error(`IPC Error on channel '${channel}':`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Process queued messages after rate limit cooldown
+     * @param {string} channel - Channel name
+     */
+    processQueue(channel) {
+        const queue = this.messageQueue.get(channel);
+        if (!queue || queue.length === 0) return;
+
+        const handlerInfo = this.handlers.get(channel);
+        if (!handlerInfo) return;
+
+        setTimeout(async () => {
+            const { data, windowId, resolve } = queue.shift();
+            try {
+                const result = await handlerInfo.handler(data, windowId);
+                resolve(result);
+            } catch (error) {
+                resolve(Promise.reject(error));
+            }
+            this.processQueue(channel);
+        }, handlerInfo.options.rateLimit);
+    }
+
+    /**
+     * Clean up IPC subscriptions when a window closes
+     * @param {string} windowId - Window ID to clean up
+     */
+    cleanup(windowId) {
+        // Unsubscribe all event listeners for this window
+        const subscriptions = this.subscriptions.get(windowId);
+        if (subscriptions) {
+            subscriptions.forEach(unsubscribe => unsubscribe());
+            this.subscriptions.delete(windowId);
+        }
+        
+        // Clear rate limit tracking
+        this.rateLimits.forEach((_, channel) => {
+            this.processQueue(channel);
+        });
+    }
+}
+
+// Initialize IPC layer with system components
+const ipc = new IPCLayer(WM, fs, notifSystem);
+
+// ═══════════════════════════════════════════
+// ARCHITECTURE: SHARED APP UTILITIES
+// Common utilities to reduce code duplication across apps
+// ═══════════════════════════════════════════
+/**
+ * AppUtils - Shared utility functions for app development
+ * Reduces code duplication and provides consistent APIs
+ */
+const AppUtils = {
+    /**
+     * Create a debounced function
+     * @param {Function} func - Function to debounce
+     * @param {number} wait - Wait time in milliseconds
+     * @returns {Function} Debounced function
+     */
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    },
+
+    /**
+     * Create a throttled function
+     * @param {Function} func - Function to throttle
+     * @param {number} limit - Minimum time between calls in milliseconds
+     * @returns {Function} Throttled function
+     */
+    throttle(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    },
+
+    /**
+     * Generate a unique ID
+     * @param {string} [prefix=''] - Optional prefix for the ID
+     * @returns {string} Unique ID
+     */
+    generateId(prefix = '') {
+        return prefix + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    },
+
+    /**
+     * Format bytes to human-readable string
+     * @param {number} bytes - Number of bytes
+     * @param {number} [decimals=2] - Decimal places
+     * @returns {string} Formatted string (e.g., "1.5 MB")
+     */
+    formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    },
+
+    /**
+     * Format date to locale string
+     * @param {number} timestamp - Unix timestamp
+     * @param {Object} [options] - Intl.DateTimeFormat options
+     * @returns {string} Formatted date string
+     */
+    formatDate(timestamp, options = {}) {
+        const defaultOptions = {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        return new Date(timestamp).toLocaleDateString('en-US', { ...defaultOptions, ...options });
+    },
+
+    /**
+     * Deep clone an object
+     * @param {*} obj - Object to clone
+     * @returns {*} Cloned object
+     */
+    deepClone(obj) {
+        if (obj === null || typeof obj !== 'object') return obj;
+        if (obj instanceof Date) return new Date(obj.getTime());
+        if (obj instanceof Array) return obj.map(item => this.deepClone(item));
+        if (typeof obj === 'object') {
+            const cloned = {};
+            for (const key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    cloned[key] = this.deepClone(obj[key]);
+                }
+            }
+            return cloned;
+        }
+        return obj;
+    },
+
+    /**
+     * Parse JSON safely with error handling
+     * @param {string} str - JSON string to parse
+     * @param {*} [defaultValue=null] - Default value if parsing fails
+     * @returns {*} Parsed object or default value
+     */
+    safeJSONParse(str, defaultValue = null) {
+        try {
+            return JSON.parse(str);
+        } catch (e) {
+            return defaultValue;
+        }
+    },
+
+    /**
+     * Create an element with attributes and children
+     * @param {string} tag - HTML tag name
+     * @param {Object} [attributes] - Element attributes
+     * @param {Array<Node|string>} [children] - Child nodes or text
+     * @returns {HTMLElement} Created element
+     */
+    createElement(tag, attributes = {}, children = []) {
+        const element = document.createElement(tag);
+        
+        for (const [key, value] of Object.entries(attributes)) {
+            if (key === 'className') {
+                element.className = value;
+            } else if (key === 'style' && typeof value === 'object') {
+                Object.assign(element.style, value);
+            } else if (key.startsWith('on') && typeof value === 'function') {
+                element.addEventListener(key.slice(2).toLowerCase(), value);
+            } else {
+                element.setAttribute(key, value);
+            }
+        }
+        
+        children.forEach(child => {
+            if (typeof child === 'string') {
+                element.appendChild(document.createTextNode(child));
+            } else if (child instanceof Node) {
+                element.appendChild(child);
+            }
+        });
+        
+        return element;
+    },
+
+    /**
+     * Load script dynamically
+     * @param {string} src - Script URL
+     * @returns {Promise<HTMLScriptElement>} Resolves when script loads
+     */
+    loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => resolve(script);
+            script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+            document.head.appendChild(script);
+        });
+    },
+
+    /**
+     * Load CSS stylesheet dynamically
+     * @param {string} href - Stylesheet URL
+     * @returns {Promise<HTMLLinkElement>} Resolves when CSS loads
+     */
+    loadStyle(href) {
+        return new Promise((resolve, reject) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            link.onload = () => resolve(link);
+            link.onerror = () => reject(new Error(`Failed to load stylesheet: ${href}`));
+            document.head.appendChild(link);
+        });
+    },
+
+    /**
+     * Check if element is visible in viewport
+     * @param {HTMLElement} element - Element to check
+     * @param {number} [threshold=0] - Visibility threshold (0-1)
+     * @returns {boolean} True if element is visible
+     */
+    isVisible(element, threshold = 0) {
+        const rect = element.getBoundingClientRect();
+        const viewHeight = window.innerHeight || document.documentElement.clientHeight;
+        const viewWidth = window.innerWidth || document.documentElement.clientWidth;
+        
+        const vertVisible = rect.bottom >= 0 && rect.top <= viewHeight;
+        const horizVisible = rect.right >= 0 && rect.left <= viewWidth;
+        
+        return vertVisible && horizVisible;
+    },
+
+    /**
+     * Scroll element into view with smooth animation
+     * @param {HTMLElement} element - Element to scroll to
+     * @param {Object} [options] - Scroll options
+     */
+    scrollTo(element, options = {}) {
+        const defaultOptions = {
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest'
+        };
+        element.scrollIntoView({ ...defaultOptions, ...options });
+    },
+
+    /**
+     * Copy text to clipboard
+     * @param {string} text - Text to copy
+     * @returns {Promise<boolean>} True if successful
+     */
+    async copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (err) {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                return true;
+            } catch (e) {
+                document.body.removeChild(textarea);
+                return false;
+            }
+        }
+    },
+
+    /**
+     * Download data as file
+     * @param {string|Blob} data - Data to download
+     * @param {string} filename - Filename for download
+     * @param {string} [type='text/plain'] - MIME type
+     */
+    downloadFile(data, filename, type = 'text/plain') {
+        const blob = data instanceof Blob ? data : new Blob([data], { type });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    },
+
+    /**
+     * Read file as text
+     * @param {File} file - File to read
+     * @returns {Promise<string>} File content
+     */
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsText(file);
+        });
+    },
+
+    /**
+     * Read file as data URL
+     * @param {File} file - File to read
+     * @returns {Promise<string>} Data URL
+     */
+    readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(file);
+        });
+    }
+};
+
+// Freeze AppUtils to prevent modifications
+Object.freeze(AppUtils);
 
 // ═══════════════════════════════════════════
 // APP REGISTRY
