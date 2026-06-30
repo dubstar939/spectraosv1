@@ -266,6 +266,25 @@
     }
     .wm-window.minimized { transform: scale(0.1) translateY(500px); opacity: 0; pointer-events: none; }
     .wm-window.maximized { top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0; }
+    /* Also hide titlebar on maximized windows, show on hover */
+    .wm-window.maximized .wm-titlebar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      opacity: 0;
+      transform: translateY(-100%);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 100000;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+    }
+    .wm-window.maximized:hover .wm-titlebar,
+    .wm-window.maximized:focus-within .wm-titlebar {
+      opacity: 1;
+      transform: translateY(0);
+    }
     
     /* Fullscreen mode - true viewport filling with hidden controls */
     .wm-window.fullscreen {
@@ -280,8 +299,25 @@
       box-shadow: none !important;
     }
     
+    /* Titlebar auto-hide in fullscreen - visible on hover */
     .wm-window.fullscreen .wm-titlebar {
-      display: none !important;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      opacity: 0;
+      transform: translateY(-100%);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 100000;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+    }
+    
+    .wm-window.fullscreen:hover .wm-titlebar,
+    .wm-window.fullscreen:focus-within .wm-titlebar {
+      opacity: 1;
+      transform: translateY(0);
     }
     
     .wm-window.fullscreen .wm-resize {
@@ -756,6 +792,13 @@
         btn.setAttribute('aria-label', `Exit fullscreen for ${w.querySelector('.wm-title span:last-child')?.textContent || 'window'}`);
         btn.textContent = '❐';
         btn.title = 'Exit Fullscreen';
+      }
+      
+      // Update close button aria-label in fullscreen mode
+      const closeBtn = w.querySelector('.wm-btn.close');
+      if (closeBtn) {
+        const appName = w.querySelector('.wm-title span:last-child')?.textContent || 'window';
+        closeBtn.setAttribute('aria-label', isFullscreen ? `Close ${appName}` : `Close ${appName} window`);
       }
     }
     
