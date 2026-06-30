@@ -324,6 +324,7 @@ class VirtualFS {
         this.cwd = '/home/user';
         this.saveDebounceTimer = null;
         this.pathCache = new Map(); // Cache for resolved paths
+        this.cacheStats = { hits: 0, misses: 0, invalidations: 0 }; // Performance tracking
         this.loadFromStorage();
     }
 
@@ -361,9 +362,11 @@ class VirtualFS {
         // Check cache first for performance
         const cacheKey = `${this.cwd}:${path}`;
         if (this.pathCache.has(cacheKey)) {
+            this.cacheStats.hits++;
             return this.pathCache.get(cacheKey);
         }
         
+        this.cacheStats.misses++;
         const result = path.startsWith('/') 
             ? path.split('/').filter(Boolean)
             : this.cwd.split('/').filter(Boolean).concat(path.split('/').filter(Boolean));
@@ -394,9 +397,25 @@ class VirtualFS {
     
     /**
      * Clear path cache - call when cwd changes or filesystem is modified
+     * Tracks invalidation count for performance monitoring
      */
     clearPathCache() {
+        this.cacheStats.invalidations++;
         this.pathCache.clear();
+    }
+    
+    /**
+     * Get cache statistics for performance monitoring
+     * @returns {Object} Cache hit/miss/invalidation stats
+     */
+    getCacheStats() {
+        const total = this.cacheStats.hits + this.cacheStats.misses;
+        const hitRate = total > 0 ? (this.cacheStats.hits / total * 100).toFixed(2) : 0;
+        return {
+            ...this.cacheStats,
+            hitRate: `${hitRate}%`,
+            totalRequests: total
+        };
     }
 
     getParent(path) {
@@ -1018,6 +1037,7 @@ class WindowManager {
     /**
      * Scale window content to fit the container
      * Respects global SpectraScalingPolicy if defined
+     * Implements throttling for canvas rendering when minimized
      */
     scaleWindowContent(content, containerWidth, containerHeight) {
         // Enhanced selector to catch all widget content types
@@ -1029,6 +1049,10 @@ class WindowManager {
             minScale: 0.25,
             maxScale: 4
         };
+        
+        // Check if window is minimized to throttle canvas rendering
+        const win = content.closest('.spectra-window');
+        const isMinimized = win?.classList.contains('minimized');
         
         widgets.forEach(widget => {
             // Skip if widget has its own scaling
@@ -1066,7 +1090,19 @@ class WindowManager {
 
             // Apply scaling based on widget type
             if (widget.tagName === 'CANVAS') {
-                this.scaleCanvas(widget, scale, originalWidth, originalHeight);
+                // Throttle canvas rendering when minimized for performance
+                if (isMinimized) {
+                    widget._pendingScale = { scale, originalWidth, originalHeight };
+                    widget._needsRenderUpdate = false;
+                } else {
+                    // Clear pending scale if exists
+                    if (widget._pendingScale) {
+                        const pending = widget._pendingScale;
+                        this.scaleCanvas(widget, pending.scale, pending.originalWidth, pending.originalHeight);
+                        widget._pendingScale = null;
+                    }
+                    this.scaleCanvas(widget, scale, originalWidth, originalHeight);
+                }
             } else if (widget.tagName === 'IFRAME') {
                 this.scaleIframe(widget, scale, containerWidth, containerHeight);
             } else {
@@ -1167,6 +1203,31 @@ class WindowManager {
         if (!win) return;
         win.minimized = !win.minimized;
         win.element.classList.toggle('minimized', win.minimized);
+        
+        // Trigger canvas render throttling when minimized/restored
+        const content = win.element.querySelector('.wm-content');
+        if (content && win.minimized) {
+            // Notify canvases to pause rendering
+            const canvases = content.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                if (canvas._pendingScale) {
+                    // Already has pending scale, just mark as not needing update
+                    canvas._needsRenderUpdate = false;
+                }
+            });
+        } else if (content && !win.minimized) {
+            // Restore canvases - apply pending scales
+            const canvases = content.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                if (canvas._pendingScale) {
+                    const pending = canvas._pendingScale;
+                    this.scaleCanvas(canvas, pending.scale, pending.originalWidth, pending.originalHeight);
+                    canvas._pendingScale = null;
+                    canvas._needsRenderUpdate = true;
+                }
+            });
+        }
+        
         this.saveToStorage();
     }
 
