@@ -4,6 +4,289 @@
    ═══════════════════════════════════════════ */
 
 // ═══════════════════════════════════════════
+// SECURITY: HTML Entity Encoder for XSS Prevention
+// ═══════════════════════════════════════════
+const SecurityUtils = {
+    /**
+     * Escape HTML entities to prevent XSS attacks
+     * @param {string} str - Raw string to escape
+     * @returns {string} - Escaped string safe for HTML insertion
+     */
+    escapeHtml(str) {
+        if (typeof str !== 'string') return str;
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    },
+    
+    /**
+     * Sanitize object with multiple string fields
+     * @param {Object} obj - Object with string fields to sanitize
+     * @param {Array<string>} fields - Field names to sanitize
+     * @returns {Object} - New object with sanitized fields
+     */
+    sanitizeObject(obj, fields) {
+        const result = { ...obj };
+        for (const field of fields) {
+            if (result[field] && typeof result[field] === 'string') {
+                result[field] = this.escapeHtml(result[field]);
+            }
+        }
+        return result;
+    }
+};
+
+// ═══════════════════════════════════════════
+// STORAGE MANAGER: Prevent race conditions with mutex lock
+// ═══════════════════════════════════════════
+class StorageManager {
+    constructor() {
+        this.writeLocks = new Map();
+        this.writeQueue = new Map();
+    }
+    
+    /**
+     * Acquire a write lock for a storage key
+     * @param {string} key - Storage key to lock
+     * @returns {Promise<boolean>} - Resolves to true if lock acquired
+     */
+    async acquireLock(key) {
+        if (!this.writeLocks.has(key)) {
+            this.writeLocks.set(key, true);
+            return true;
+        }
+        
+        // Wait for lock to be released with timeout
+        return new Promise((resolve) => {
+            let attempts = 0;
+            const maxAttempts = 10;
+            const checkLock = () => {
+                if (!this.writeLocks.get(key)) {
+                    this.writeLocks.set(key, true);
+                    resolve(true);
+                } else if (attempts >= maxAttempts) {
+                    console.warn(`Storage lock timeout for key: ${key}`);
+                    resolve(false);
+                } else {
+                    attempts++;
+                    setTimeout(checkLock, 50);
+                }
+            };
+            checkLock();
+        });
+    }
+    
+    /**
+     * Release a write lock
+     * @param {string} key - Storage key to unlock
+     */
+    releaseLock(key) {
+        this.writeLocks.set(key, false);
+        
+        // Process queued writes if any
+        if (this.writeQueue.has(key) && this.writeQueue.get(key).length > 0) {
+            const queue = this.writeQueue.get(key);
+            const nextWrite = queue.shift();
+            if (nextWrite) {
+                setTimeout(() => nextWrite(), 10);
+            }
+        }
+    }
+    
+    /**
+     * Safe setItem with lock management
+     * @param {string} key - Storage key
+     * @param {string} value - Value to store
+     * @returns {Promise<boolean>} - Success status
+     */
+    async setItem(key, value) {
+        try {
+            const acquired = await this.acquireLock(key);
+            if (!acquired) {
+                // Queue the write for later
+                return new Promise((resolve) => {
+                    if (!this.writeQueue.has(key)) {
+                        this.writeQueue.set(key, []);
+                    }
+                    this.writeQueue.get(key).push(async () => {
+                        const result = await this.setItem(key, value);
+                        resolve(result);
+                    });
+                });
+            }
+            
+            localStorage.setItem(key, value);
+            this.releaseLock(key);
+            return true;
+        } catch (e) {
+            console.error('Storage write failed:', e);
+            this.releaseLock(key);
+            return false;
+        }
+    }
+    
+    /**
+     * Safe getItem (reads don't need locking)
+     * @param {string} key - Storage key
+     * @returns {string|null} - Stored value or null
+     */
+    getItem(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (e) {
+            console.error('Storage read failed:', e);
+            return null;
+        }
+    }
+}
+
+const storageManager = new StorageManager();
+
+// ═══════════════════════════════════════════
+// ERROR BOUNDARY: Prevent app failures from breaking OS
+// ═══════════════════════════════════════════
+class ErrorBoundary {
+    constructor() {
+        this.errorHandlers = [];
+        this.maxErrors = 5;
+        this.errorCount = 0;
+        this.lastErrorTime = 0;
+        
+        // Global error handler
+        window.addEventListener('error', (e) => this.handleGlobalError(e));
+        window.addEventListener('unhandledrejection', (e) => this.handleUnhandledRejection(e));
+    }
+    
+    /**
+     * Register an error handler for a specific context
+     * @param {string} context - Context identifier (e.g., app name)
+     * @param {Function} handler - Error handler function
+     */
+    registerHandler(context, handler) {
+        this.errorHandlers.push({ context, handler });
+    }
+    
+    /**
+     * Handle errors within a safe execution context
+     * @param {Function} fn - Function to execute safely
+     * @param {string} context - Context for error reporting
+     * @param {*} fallback - Fallback value on error
+     * @returns {*} - Function result or fallback
+     */
+    execute(fn, context = 'unknown', fallback = null) {
+        try {
+            return fn();
+        } catch (e) {
+            this.handleError(e, context);
+            return fallback;
+        }
+    }
+    
+    /**
+     * Handle async errors within a safe execution context
+     * @param {Promise} promise - Promise to execute safely
+     * @param {string} context - Context for error reporting
+     * @param {*} fallback - Fallback value on error
+     * @returns {Promise<*>} - Promise result or fallback
+     */
+    async executeAsync(promise, context = 'unknown', fallback = null) {
+        try {
+            return await promise;
+        } catch (e) {
+            this.handleError(e, context);
+            return fallback;
+        }
+    }
+    
+    /**
+     * Handle global uncaught errors
+     * @param {ErrorEvent} e - Error event
+     */
+    handleGlobalError(e) {
+        this.handleError(e.error || e, 'global');
+        
+        // Prevent default browser error handling for controlled errors
+        if (e.message?.includes('SpectraOS')) {
+            e.preventDefault();
+        }
+    }
+    
+    /**
+     * Handle unhandled promise rejections
+     * @param {PromiseRejectionEvent} e - Rejection event
+     */
+    handleUnhandledRejection(e) {
+        this.handleError(e.reason || new Error('Unhandled rejection'), 'async');
+    }
+    
+    /**
+     * Centralized error handling
+     * @param {Error} error - Error object
+     * @param {string} context - Error context
+     */
+    handleError(error, context = 'unknown') {
+        const now = Date.now();
+        
+        // Reset error count after 60 seconds of no errors
+        if (now - this.lastErrorTime > 60000) {
+            this.errorCount = 0;
+        }
+        
+        this.errorCount++;
+        this.lastErrorTime = now;
+        
+        // Log error with context
+        console.error(`[ErrorBoundary] ${context}:`, error);
+        
+        // Notify registered handlers
+        for (const { context: ctx, handler } of this.errorHandlers) {
+            if (ctx === context || ctx === '*') {
+                try {
+                    handler(error, context);
+                } catch (e) {
+                    console.error('Error handler failed:', e);
+                }
+            }
+        }
+        
+        // Show user-friendly error notification for critical errors
+        if (this.errorCount >= this.maxErrors) {
+            this.showSystemWarning();
+        }
+        
+        // Dispatch custom event for apps to listen to
+        window.dispatchEvent(new CustomEvent('spectra-error', { 
+            detail: { error, context, timestamp: now } 
+        }));
+    }
+    
+    /**
+     * Show system warning when too many errors occur
+     */
+    showSystemWarning() {
+        const warning = document.getElementById('system-warning');
+        if (warning) {
+            warning.style.display = 'block';
+            setTimeout(() => {
+                warning.style.display = 'none';
+            }, 5000);
+        } else if (notifSystem) {
+            notifSystem.add('System Warning', 'Multiple errors detected. Some features may be unstable.', '⚠️', 'warning');
+        }
+    }
+    
+    /**
+     * Reset error counter
+     */
+    reset() {
+        this.errorCount = 0;
+        this.lastErrorTime = 0;
+    }
+}
+
+const errorBoundary = new ErrorBoundary();
+
+// ═══════════════════════════════════════════
 // VIRTUAL FILESYSTEM
 // ═══════════════════════════════════════════
 class VirtualFS {
@@ -202,8 +485,9 @@ class NotificationSystem {
     
     /**
      * Debounced save to localStorage - batches writes for performance
+     * Uses StorageManager to prevent race conditions
      */
-    saveToStorage() {
+    async saveToStorage() {
         if (this.saveDebounceTimer) {
             clearTimeout(this.saveDebounceTimer);
         }
@@ -211,12 +495,12 @@ class NotificationSystem {
         this.pendingChanges = true;
         
         // Debounce localStorage writes by 500ms
-        this.saveDebounceTimer = setTimeout(() => {
+        this.saveDebounceTimer = setTimeout(async () => {
             if (!this.pendingChanges) return;
             
             try {
                 const data = JSON.stringify(this.notifications);
-                localStorage.setItem(this.storageKey, data);
+                await storageManager.setItem(this.storageKey, data);
                 this.pendingChanges = false;
             } catch (e) {
                 console.error('Failed to save notifications:', e);
@@ -226,7 +510,7 @@ class NotificationSystem {
 
     loadFromStorage() {
         try {
-            const data = localStorage.getItem(this.storageKey);
+            const data = storageManager.getItem(this.storageKey);
             if (data) {
                 const parsed = JSON.parse(data);
                 if (Array.isArray(parsed)) {
@@ -241,9 +525,16 @@ class NotificationSystem {
     }
 
     add(title, text, icon = '🔔', type = 'info') {
+        // Sanitize input to prevent XSS attacks
+        const sanitizedTitle = SecurityUtils.escapeHtml(title);
+        const sanitizedText = SecurityUtils.escapeHtml(text);
+        
         const notif = {
             id: Date.now() + Math.random(),
-            title, text, icon, type,
+            title: sanitizedTitle, 
+            text: sanitizedText, 
+            icon: SecurityUtils.escapeHtml(icon), 
+            type,
             time: new Date(),
             unread: true
         };
@@ -297,11 +588,11 @@ class NotificationSystem {
         list.innerHTML = this.notifications.map(n => `
             <button class="notif-item ${n.unread ? 'unread' : ''}" data-id="${n.id}" 
                     onclick="notifSystem.markRead(${n.id})" 
-                    aria-label="${n.title}: ${n.text}" tabindex="0">
-                <div class="notif-icon" aria-hidden="true">${n.icon}</div>
+                    aria-label="${SecurityUtils.escapeHtml(n.title)}: ${SecurityUtils.escapeHtml(n.text)}" tabindex="0">
+                <div class="notif-icon" aria-hidden="true">${SecurityUtils.escapeHtml(n.icon)}</div>
                 <div class="notif-body">
-                    <div class="notif-title">${n.title}</div>
-                    <div class="notif-text">${n.text}</div>
+                    <div class="notif-title">${SecurityUtils.escapeHtml(n.title)}</div>
+                    <div class="notif-text">${SecurityUtils.escapeHtml(n.text)}</div>
                     <div class="notif-time">${this.formatTime(n.time)}</div>
                 </div>
             </button>
@@ -311,18 +602,27 @@ class NotificationSystem {
     showToast(notif) {
         const area = document.getElementById('notif-area');
         if (!area) return;
-        
+
         const toast = document.createElement('div');
         toast.className = 'notif-toast';
         toast.setAttribute('role', 'alert');
         toast.setAttribute('aria-live', 'polite');
-        toast.innerHTML = `
-            <div class="notif-toast-title" aria-hidden="true">${notif.icon} ${notif.title}</div>
-            <div class="notif-toast-body">${notif.text}</div>
-        `;
         
+        // Use textContent for safe insertion instead of innerHTML to prevent XSS
+        const titleEl = document.createElement('div');
+        titleEl.className = 'notif-toast-title';
+        titleEl.setAttribute('aria-hidden', 'true');
+        titleEl.textContent = `${notif.icon} ${notif.title}`;
+        
+        const bodyEl = document.createElement('div');
+        bodyEl.className = 'notif-toast-body';
+        bodyEl.textContent = notif.text;
+        
+        toast.appendChild(titleEl);
+        toast.appendChild(bodyEl);
+
         area.appendChild(toast);
-        
+
         // Auto-remove after 5 seconds
         setTimeout(() => {
             toast.style.transition = 'opacity 0.3s, transform 0.3s';
